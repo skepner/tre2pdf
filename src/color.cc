@@ -1,0 +1,60 @@
+#include "color.hh"
+
+// ----------------------------------------------------------------------
+
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wglobal-constructors"
+#pragma GCC diagnostic ignored "-Wexit-time-destructors"
+#endif
+
+const json sDefaultDatabase = {
+    {"continents", {
+            {"EUROPE",            0x00FF00},
+            {"CENTRAL-AMERICA",   0xAAF9FF},
+            {"MIDDLE-EAST",       0x8000FF},
+            {"NORTH-AMERICA",     0x00008B},
+            {"AFRICA",            0xFF8000},
+            {"ASIA",              0xFF0000},
+            {"RUSSIA",            0xB03060},
+            {"AUSTRALIA-OCEANIA", 0xFF69B4},
+            {"SOUTH-AMERICA",     0x40E0D0},
+            {"ANTARCTICA",        0x808080},
+            {"CHINA-SOUTH",       0xFF0000},
+            {"CHINA-NORTH",       0x6495ED},
+            {"CHINA-UNKNOWN",     0x808080},
+            {"UNKNOWN",           0x808080},
+        }}
+};
+
+#pragma GCC diagnostic pop
+
+// ----------------------------------------------------------------------
+
+static Colors* sColors = nullptr;
+
+Colors& colors()
+{
+    if (sColors == nullptr)
+        sColors = new Colors();
+    return *sColors;
+
+} // colors
+
+// ----------------------------------------------------------------------
+
+Colors::Colors()
+    : mDatabase(sDefaultDatabase)
+{
+}
+
+// ----------------------------------------------------------------------
+
+Color Colors::continent(std::string aContinent) const
+{
+    auto const c = mDatabase["continents"].count(aContinent) ? mDatabase["continents"][aContinent] : mDatabase["continents"]["UNKNOWN"];
+    return Color(c.get<size_t>());
+
+} // Colors::continent
+
+// ----------------------------------------------------------------------

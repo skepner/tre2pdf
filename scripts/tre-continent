@@ -1,0 +1,165 @@
+#! /usr/bin/env python
+# -*- Python -*-
+# license
+# Copyright (c) 2016, The Center For Pathogen Evolution, Department of Zoology, University of Cambridge, UK
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     1. Redistributions of source code must retain the above copyright
+#        notice, this list of conditions and the following disclaimer.
+#     2. Redistributions in binary form must reproduce the above copyright
+#        notice, this list of conditions and the following disclaimer in the
+#        documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE CENTER FOR PATHOGEN EVOLUTION BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# license.
+
+"""
+Reads json in the phylogenetic-tree-v1 format produced by newick2json,
+updates it with continent for each leaf node using acmacs API, dumps
+resulting json.
+"""
+
+from __future__ import print_function
+
+import sys
+if sys.version_info.major != 2:
+    print("This script must be executed with python 2")
+    exit(1)
+
+import os, re, urllib, json, traceback, pprint, logging, datetime
+
+# ======================================================================
+
+class CommandError (Exception):
+    """Raised by api._execute if command resposne contains error and raise_error flag is set."""
+
+# ======================================================================
+
+class API:
+
+    def __init__(self, url_prefix='https://localhost:1168'):
+        self.url_prefix = url_prefix
+
+    def execute(self, command):
+        if self.url_prefix:
+            response = self._execute_http(command)
+        else:
+            raise ValueError('No url_prefix')
+        if isinstance(response, dict) and response.get('E'):
+            raise CommandError(response['E'])
+        return response
+
+    def _execute_http(self, command):
+        command['F'] = 'json'
+        if "localhost" in self.url_prefix:
+            import ssl
+            context = ssl.create_default_context()
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        else:
+            context = None
+        # print(command)
+        command_data = json.dumps(command).encode('utf-8')
+        response = urllib.urlopen(url='{}/api'.format(self.url_prefix), data=command_data, context=context).read()
+        return json.loads(response)
+
+# ======================================================================
+
+def main(options, source_file, result_file):
+    exit_code = 0
+    try:
+        data = load_tree(source_file)
+        # names = ["B/HUMAN/DARWIN/26/2011 MDCK1 VICTORIA", "UR 111"]
+        names = collect_names(data["tree"])
+        logging.info("{} total names found in the source".format(len(names)))
+        names = sorted(set(names))
+        logging.info('{} unique names found in the source'.format(len(names)))
+        api = API(url_prefix=options.url_prefix)
+        response = api.execute({"C": "location_continent_of_name", "names": names})
+        # print(json.dumps(response, indent=2, sort_keys=True))
+        mapping = dict(zip(names, response["continents"]))
+        # pprint.pprint(mapping)
+        report_unknown(mapping)
+        add_continents(data["tree"], mapping)
+        data.setdefault("updated", []).append({"program": sys.argv[0], "date": str(datetime.datetime.now()), "user": os.environ["USER"]})
+        save_tree(result_file, data)
+    except Exception as err:
+        print('ERROR: cannot execute command:', err, traceback.format_exc())
+        exit_code = 1
+    return exit_code
+
+# ======================================================================
+
+def load_tree(source_file):
+    data = json.load(sys.stdin if source_file == "-" else open(source_file))
+    if data.get("version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
+        raise RuntimeError("Unrecognized source data")
+    return data
+
+# ----------------------------------------------------------------------
+
+def save_tree(filename, data):
+    json.dump(data, sys.stdout if filename == "-" else open(filename, "w"), indent=2, separators=(',', ': '), sort_keys=True)
+
+# ----------------------------------------------------------------------
+
+def collect_names(data):
+    return ([data["name"]] if data.get("name") else []) + sum((collect_names(e) for e in data.get("subtree", [])), [])
+
+# ----------------------------------------------------------------------
+
+def add_continents(data, mapping):
+    if data.get("name"):
+        continent = mapping.get(data["name"])
+        if continent and continent != 'UNKNOWN':
+            data["continent"] = continent
+    if data.get("subtree"):
+        for e in data["subtree"]:
+            add_continents(e, mapping)
+
+# ----------------------------------------------------------------------
+
+def report_unknown(mapping):
+    unknown = sorted(n for n,c in mapping.items() if c == "UNKNOWN")
+    if unknown:
+        print("Warning: cannot find continent for the following names (", len(unknown), ")\n  ", "\n  ".join(unknown), sep="", file=sys.stderr)
+
+# ----------------------------------------------------------------------
+
+try:
+    import optparse
+    parser = optparse.OptionParser(usage='%prog [options] <source-tree.json> <resulting-tree.json>')
+    parser.add_option('--acmacs', action='store', dest='url_prefix', default='https://localhost:1168', help='AcmacsWeb server host and port, e.g. https://localhost:1168.')
+    parser.add_option('--debug', action='store_true', dest='debug', default=False, help='Enable debugging output.')
+    (options, args) = parser.parse_args()
+    logging_format = "%(levelname)s: %(message)s"
+    if options and options.debug:
+        logging.basicConfig(level=logging.DEBUG, format=logging_format)
+    else:
+        logging.basicConfig(level=logging.INFO, format=logging_format)
+    if len(args) != 2:
+        exit_code = 1
+        print("Error: two arguments at command line expected", file=sys.stderr)
+        parser.print_usage()
+    else:
+        exit_code = main(options, args[0], args[1])
+except Exception as err:
+    logging.error('{}\n{}'.format(err, traceback.format_exc()))
+    exit_code = 1
+exit(exit_code)
+
+# ======================================================================
+### Local Variables:
+### eval: (if (fboundp 'eu-rename-buffer) (eu-rename-buffer))
+### End:
