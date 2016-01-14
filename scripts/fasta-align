@@ -59,15 +59,16 @@ SIGNAL_PEPTIDE = {
         "MKTIIALSYISCLVFA","MKTIIVLSCFFCLAFS","MKTLIALSYIFCLVLG","MKTTTILILLTHWVHS"
         ],
     "H1": [
-        "MKVKLLVLLCTFTATYA","MKVKLLVLLCTFSATYA", # H1seas, from http://signalpeptide.com/
+        "MKVKLLVLLCTFTATYA","MKVKLLVLLCTFSATYA", # H1seas, http://signalpeptide.com/
         "MKAILVVLLYTFATANA",              # H1pdm
         ],
     "B": [
+        "MVVTSNA",                        # http://signalpeptide.com/
         ],
 
 }
 
-SIGNAL_PEPTIDE_LEN = {"H3": 16, "H1": 17, "B": 16}
+SIGNAL_PEPTIDE_LEN = {"H3": 16, "H1": 17, "B": 7}
 
 GOOD_INFIXES = {
     "H3": [
@@ -177,7 +178,7 @@ def align(sequences, subtype):
     print("\nBAD")
     for name, data in r["bad"].items():
         #print(data["sequence"][:16], data["sequence"][16:32], name, data["sequence"])
-        print(data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 16], name)
+        print(data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 64], name)
 
 # ----------------------------------------------------------------------
 
