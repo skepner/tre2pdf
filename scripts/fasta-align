@@ -52,21 +52,22 @@ def main(args):
 
 # ======================================================================
 
-# http://signalpeptide.com/index.php
-
 SIGNAL_PEPTIDE = {
-    "H3": [
+    "H3": [                               # all from http://signalpeptide.com/
         "MKTIIALCYILCLVFA","MKTIIALSHIFCLVLG","MKTIIALSYIFCLAFA","MKTIIALSYIFCLAFG","MKTIIALSYIFCLALG",
         "MKTIIALSYIFCLVFA","MKTIIALSYIFCLVLG","MKTIIALSYIFCQVFA","MKTIIALSYIFCQVLA","MKTIIALSYILCLVFA",
         "MKTIIALSYISCLVFA","MKTIIVLSCFFCLAFS","MKTLIALSYIFCLVLG","MKTTTILILLTHWVHS"
         ],
     "H1": [
-        "MKAILVVLLYTFATANA",
+        "MKVKLLVLLCTFTATYA","MKVKLLVLLCTFSATYA", # H1seas, from http://signalpeptide.com/
+        "MKAILVVLLYTFATANA",              # H1pdm
         ],
     "B": [
         ],
 
 }
+
+SIGNAL_PEPTIDE_LEN = {"H3": 16, "H1": 17, "B": 16}
 
 GOOD_INFIXES = {
     "H3": [
@@ -74,7 +75,10 @@ GOOD_INFIXES = {
         ],
     "H1": [
         {"infix": "DTLCIGYHA", "shift": 0},
-        {"infix": "DTLCMGYHANNSTDTV", "shift": 0},
+        {"infix": "DTICIGYHANN", "shift": 0},
+        {"infix": "DTICMGYHANN", "shift": 0},
+        {"infix": "GYHANNSTDTV", "shift": 5},
+        {"infix": "GYHANNSADTV", "shift": 5},
         ],
     "B": [
         ],
@@ -101,12 +105,12 @@ def separate_by_signal_peptide(signal_peptide, r, start_len):
             r["good"][name] = data
     cleanup(r)
 
-def separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, r):
+def separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, signal_peptide_len, r):
     if r["good_start"]:
         for name, data in r["bad"].items():
             sp_len, diff_sp = differences(signal_peptide, data["sequence"])
             gs_len, diff_gs = differences(r["good_start"], data["sequence"][sp_len:])
-            # print("{:2d} {:2d} {} {}".format(diff_sp, diff_gs, data["sequence"][:16], data["sequence"][16:32]))
+            # print("{:2d} {:2d} {} {}".format(diff_sp, diff_gs, data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 16]))
             if diff_gs < 2 and diff_sp < 8:
                 data["signal_peptide_len"] = sp_len
                 data["shift"] = - data["signal_peptide_len"]
@@ -155,14 +159,16 @@ def differences(prefixes, seq):
     return diffs[0]
 
 def align(sequences, subtype):
+    signal_peptide = SIGNAL_PEPTIDE[subtype]
+    signal_peptide_len = SIGNAL_PEPTIDE_LEN[subtype]
     r = {"good": {}, "bad": sequences, "good_start": set(), "short": {}}
     separate_short(r, 100)
     report("separate_short good", r)
-    separate_by_signal_peptide(SIGNAL_PEPTIDE[subtype], r, 16)
+    separate_by_signal_peptide(signal_peptide, r, 16)
     report("separate_by_signal_peptide", r)
     separate_by_good_start(r)
     report("separate_by_good_start", r)
-    separate_by_mismatched_signal_peptide_at_beginning(SIGNAL_PEPTIDE[subtype], r)
+    separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, signal_peptide_len, r)
     report("separate_by_mismatched_signal_peptide_at_beginning", r)
     separate_by_good_infixes(GOOD_INFIXES[subtype], r)
     report("separate_by_good_infixes", r)
@@ -171,7 +177,7 @@ def align(sequences, subtype):
     print("\nBAD")
     for name, data in r["bad"].items():
         #print(data["sequence"][:16], data["sequence"][16:32], name, data["sequence"])
-        print(data["sequence"][:16], data["sequence"][16:32], name)
+        print(data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 16], name)
 
 # ----------------------------------------------------------------------
 
