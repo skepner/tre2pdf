@@ -92,7 +92,9 @@ GOOD_INFIXES = {
 
 EXCLUDE = {
     "H3": [],
-    "H1": [],
+    "H1": [
+        {"seq": "MNPNQKIITIGSVCMTI", "type": "neuraminidase"},   # http://sbkb.org/
+        ],
     "B":  [
         {"seq": "MLPSTIQ", "type": "neuraminidase"},
         {"seq": "MADNMTT", "type": "ns1"},
@@ -101,14 +103,14 @@ EXCLUDE = {
 }
 
 def separate_short(r, min_len):
-    for name, data in r["bad"].items():
+    for name, data in r["unknown"].items():
         if len(data["sequence"]) < min_len:
             data["shift"] = "short"
             r["short"][name] = data
     cleanup(r)
 
 def separate_by_signal_peptide(signal_peptide, r, start_len):
-    for name, data in r["bad"].items():
+    for name, data in r["unknown"].items():
         offset = -1
         for sp in signal_peptide:
             offset = data["sequence"].find(sp)
@@ -123,7 +125,7 @@ def separate_by_signal_peptide(signal_peptide, r, start_len):
 
 def separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, signal_peptide_len, r):
     if r["good_start"]:
-        for name, data in r["bad"].items():
+        for name, data in r["unknown"].items():
             sp_len, diff_sp = differences(signal_peptide, data["sequence"])
             gs_len, diff_gs = differences(r["good_start"], data["sequence"][sp_len:])
             # print("{:2d} {:2d} {} {}".format(diff_sp, diff_gs, data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 16]))
@@ -134,7 +136,7 @@ def separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, signal_pe
         cleanup(r)
 
 def separate_by_good_start(r):
-    for name, data in r["bad"].items():
+    for name, data in r["unknown"].items():
         offset = -1
         for gs in r["good_start"]:
             o = data["sequence"].find(gs)
@@ -159,7 +161,7 @@ def separate_by_good_infixes(good_infixes, r):
                     break
         return good
 
-    for name, data in r["bad"].items():
+    for name, data in r["unknown"].items():
         for gi in good_infixes:
             offset = data["sequence"].find(gi["infix"])
             if offset >= 0 and check(data, offset, gi):
@@ -170,7 +172,7 @@ def separate_by_good_infixes(good_infixes, r):
     cleanup(r)
 
 def separate_excluded(prefixes, r):
-    for name, data in r["bad"].items():
+    for name, data in r["unknown"].items():
         for p in prefixes:
             if data["sequence"][:len(p["seq"])] == p["seq"]:
                 data["shift"] = p["type"]
@@ -179,12 +181,13 @@ def separate_excluded(prefixes, r):
     cleanup(r)
 
 def cleanup(r):
-    for name in list(r["bad"]):
-        if r["bad"][name].get("shift") is not None:
-            del r["bad"][name]
+    for name in list(r["unknown"]):
+        if r["unknown"][name].get("shift") is not None:
+            del r["unknown"][name]
 
 def report(prefix, r):
-    print("{}: good: {}  bad: {} short: {} total: {}".format(prefix, len(r["good"]), len(r["bad"]), len(r["short"]), len(r["good"]) + len(r["bad"]) + len(r["short"])))
+    #print("{}: good: {}  unknown: {} short: {} total: {}".format(prefix, len(r["good"]), len(r["unknown"]), len(r["short"]), len(r["good"]) + len(r["unknown"]) + len(r["short"])))
+    print("{}: total:{} {}".format(prefix, sum(len(r[n]) for n in r if n != "good_start"), " ".join("{}:{}".format(n, len(r[n])) for n in r if n != "good_start")))
 
 def differences(prefixes, seq):
     """returns tuple (prefix_len, difference)"""
@@ -210,7 +213,7 @@ def shift_good(r):
 def align(sequences, subtype):
     signal_peptide = SIGNAL_PEPTIDE[subtype]
     signal_peptide_len = SIGNAL_PEPTIDE_LEN[subtype]
-    r = {"good": {}, "bad": sequences, "good_start": set(), "short": {}, "neuraminidase": {}, "ns1": {}}
+    r = {"good": {}, "unknown": sequences, "good_start": set(), "short": {}, "neuraminidase": {}, "ns1": {}}
     separate_short(r, 100)
     report("separate_short good", r)
     separate_by_signal_peptide(signal_peptide, r, 16)
@@ -225,10 +228,10 @@ def align(sequences, subtype):
     report("separate_by_good_infixes", r)
     shift_good(r)
 
-    print("\nGOOD_START\n\t", "\n\t".join(sorted(r["good_start"])), sep="")
-    print("\nBAD")
-    for name in sorted(r["bad"], key=lambda n: r["bad"][n]["sequence"]):
-        data = r["bad"][name]
+    # print("\nGOOD_START\n\t", "\n\t".join(sorted(r["good_start"])), sep="")
+    print("\nUNKNOWN")
+    for name in sorted(r["unknown"], key=lambda n: r["unknown"][n]["sequence"]):
+        data = r["unknown"][name]
         #print(data["sequence"][:16], data["sequence"][16:32], name, data["sequence"])
         print(data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 64], name)
     return r
@@ -248,8 +251,8 @@ def write(r, output):
     with open(output, "w") as f:
         for name, data in r["good"].items():
             write_entry(f, name, data["prefix"], data["sequence"])
-        f.write("\n==== BAD ====\n\n")
-        for name, data in r["bad"].items():
+        f.write("\n==== UNKNOWN ====\n\n")
+        for name, data in r["unknown"].items():
             write_entry(f, name, "", data["sequence"])
         f.write("\n==== SHORT ====\n\n")
         for name, data in r["short"].items():
