@@ -45,6 +45,7 @@ def main(args):
         sequences = translate_to_amino_acid(decode_names(load_fasta(args.fasta[0])))
         subtype = detect_subtype(sequences)
         sequences = align(sequences, subtype)
+        write(sequences, args.output[0])
     except Exception as err:
         print('ERROR:', err, traceback.format_exc())
         exit_code = 1
@@ -63,6 +64,7 @@ SIGNAL_PEPTIDE = {
         "MKAILVVLLYTFATANA",              # H1pdm
         ],
     "B": [
+        "MKAIIVLLMVVTSNA",                # http://repository.kulib.kyoto-u.ac.jp/dspace/bitstream/2433/49327/1/8_1.pdf
         "MVVTSNA",                        # http://signalpeptide.com/
         ],
 
@@ -82,6 +84,19 @@ GOOD_INFIXES = {
         {"infix": "GYHANNSADTV", "shift": 5},
         ],
     "B": [
+        {"infix": "RICT", "shift": 1, "check": [{"offset": 40, "seq": "FANL"}]},
+        {"infix": "SICT", "shift": 1, "check": [{"offset": 40, "seq": "FANL"}]},
+        {"infix": "FANLKG", "shift": 40, "check": [{"offset": 58, "seq": "NCTDLDVAL"}]},
+        ],
+}
+
+EXCLUDE = {
+    "H3": [],
+    "H1": [],
+    "B":  [
+        {"seq": "MLPSTIQ", "type": "neuraminidase"},
+        {"seq": "MADNMTT", "type": "ns1"},
+        {"seq": "MANNNMT", "type": "ns1"},
         ],
 }
 
@@ -132,13 +147,34 @@ def separate_by_good_start(r):
     cleanup(r)
 
 def separate_by_good_infixes(good_infixes, r):
+
+    def check(data, offset, gi):
+        good = True
+        if gi.get("check"):
+            for c in gi["check"]:
+                b = offset - gi["shift"] + c["offset"]
+                e = b + len(c["seq"])
+                if data["sequence"][b:e] != c["seq"]:
+                    good = False
+                    break
+        return good
+
     for name, data in r["bad"].items():
         for gi in good_infixes:
             offset = data["sequence"].find(gi["infix"])
-            if offset >= 0:
+            if offset >= 0 and check(data, offset, gi):
                 data["shift"] = - offset + gi["shift"]
                 data["signal_peptide_len"] = 0
                 r["good"][name] = data
+                break
+    cleanup(r)
+
+def separate_excluded(prefixes, r):
+    for name, data in r["bad"].items():
+        for p in prefixes:
+            if data["sequence"][:len(p["seq"])] == p["seq"]:
+                data["shift"] = p["type"]
+                r[p["type"]][name] = data
                 break
     cleanup(r)
 
@@ -159,10 +195,22 @@ def differences(prefixes, seq):
     diffs = sorted(((len(prefix), diff(prefix)) for prefix in prefixes), key=lambda e: e[1])
     return diffs[0]
 
+def shift_good(r):
+    min_shift = min(data["shift"] for data in r["good"].values())
+    for name, data in r["good"].items():
+        nx = data["shift"] - min_shift
+        if nx > 0:
+            data["prefix"] = "x" * nx
+        elif nx < 0:
+            raise RuntimeError("Negative resulting shift, min_shift:{} {} {}".format(min_shift, name, data))
+        else:
+            data["prefix"] = ""
+        # print(data["prefix"], data["sequence"][:64], sep="")
+
 def align(sequences, subtype):
     signal_peptide = SIGNAL_PEPTIDE[subtype]
     signal_peptide_len = SIGNAL_PEPTIDE_LEN[subtype]
-    r = {"good": {}, "bad": sequences, "good_start": set(), "short": {}}
+    r = {"good": {}, "bad": sequences, "good_start": set(), "short": {}, "neuraminidase": {}, "ns1": {}}
     separate_short(r, 100)
     report("separate_short good", r)
     separate_by_signal_peptide(signal_peptide, r, 16)
@@ -171,14 +219,41 @@ def align(sequences, subtype):
     report("separate_by_good_start", r)
     separate_by_mismatched_signal_peptide_at_beginning(signal_peptide, signal_peptide_len, r)
     report("separate_by_mismatched_signal_peptide_at_beginning", r)
+    separate_excluded(EXCLUDE[subtype], r)
+    report("separate_neuraminidase", r)
     separate_by_good_infixes(GOOD_INFIXES[subtype], r)
     report("separate_by_good_infixes", r)
+    shift_good(r)
 
     print("\nGOOD_START\n\t", "\n\t".join(sorted(r["good_start"])), sep="")
     print("\nBAD")
-    for name, data in r["bad"].items():
+    for name in sorted(r["bad"], key=lambda n: r["bad"][n]["sequence"]):
+        data = r["bad"][name]
         #print(data["sequence"][:16], data["sequence"][16:32], name, data["sequence"])
         print(data["sequence"][:signal_peptide_len], data["sequence"][signal_peptide_len:signal_peptide_len + 64], name)
+    return r
+
+# ----------------------------------------------------------------------
+
+def write(r, output):
+
+    def write_entry(f, name, prefix, sequence):
+        f.write(">")
+        f.write(name)
+        f.write("\n")
+        f.write(prefix)
+        f.write(sequence)
+        f.write("\n")
+
+    with open(output, "w") as f:
+        for name, data in r["good"].items():
+            write_entry(f, name, data["prefix"], data["sequence"])
+        f.write("\n==== BAD ====\n\n")
+        for name, data in r["bad"].items():
+            write_entry(f, name, "", data["sequence"])
+        f.write("\n==== SHORT ====\n\n")
+        for name, data in r["short"].items():
+            write_entry(f, name, "", data["sequence"])
 
 # ----------------------------------------------------------------------
 
@@ -314,6 +389,7 @@ try:
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('fasta', nargs=1, help='Fasta file to process.')
+    parser.add_argument('output', nargs=1, help='Output file name.')
     parser.add_argument('--debug', action='store_true', dest='debug', default=False, help='Enable debugging output.')
     args = parser.parse_args()
     logging_format = "%(levelname)s: %(message)s"
