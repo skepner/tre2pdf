@@ -94,14 +94,23 @@ template <typename I> void parse_newick(Tree& tree, I begin, I end)
             extracted_edge_length = -1;
         });
 
-    auto element_edge_length = colon > axe::r_many(space, 0) > axe::r_ufixed(extracted_edge_length) > axe::r_many(space, 0);
-    auto element_name = ((name >> extracted_name) > *space > ~element_edge_length) >> add_name;
+    auto end_root_tree = axe::e_ref([&tree, &extracted_edge_length](I, I) {
+              // std::cout << "end_root_tree " << extracted_edge_length << std::endl;
+            if (extracted_edge_length >= 0.0)
+                tree.edge_length = extracted_edge_length;
+            extracted_edge_length = -1;
+        });
+
+      // auto element_edge_length = axe::r_double(extracted_edge_length) | axe::r_ufixed(extracted_edge_length) | axe::r_udecimal(extracted_edge_length);
+    auto element_edge_length = axe::r_double(extracted_edge_length);
+    auto element_edge_length_with_colon = colon > axe::r_many(space, 0) > element_edge_length > axe::r_many(space, 0);
+    auto element_name = ((name >> extracted_name) > *space > ~element_edge_length_with_colon) >> add_name;
     axe::r_rule<I> subtree;
-    auto element_subtree = subtree > *space > ~element_edge_length >> end_subtree;
+    auto element_subtree = subtree > *space > ~element_edge_length_with_colon >> end_subtree;
     auto element = *space & (element_name | element_subtree | axe::r_fail(parsing_failure("either name or subtree expected"))) & *space;
     auto subtree_content = element > axe::r_many(comma & (element | axe::r_fail(parsing_failure("either name or subtree expected"))), 0);
     subtree = (open_paren >> new_subtree) > subtree_content > close_paren;
-    auto root_tree = open_paren > subtree_content > close_paren;
+    auto root_tree = open_paren > subtree_content > close_paren > *space > ~element_edge_length_with_colon >> end_root_tree;
     auto tre = *space > root_tree > *space > semicolon > *space;
 
     try {

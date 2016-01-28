@@ -65,7 +65,7 @@ $(DIST)/tre2pdf: $(patsubst %.cc,$(BUILD)/%.o,$(TRE2PDF_SOURCES)) | $(DIST)
 
 test: all
 	# $(DIST)/tre2pdf --continents --clades /tmp/d.json /tmp/t.pdf && open /tmp/t.pdf
-	# $(DIST)/newick2json trees/a.tre -
+	$(DIST)/newick2json trees/a.tre -
 	# $(DIST)/newick2json trees/a.tre - | ./scripts/tre-continent - -
 	# $(DIST)/newick2json trees/a.tre - | ./scripts/tre-continent - - | ./scripts/tre-clade - ~/ac/results/ssm/2015-1215-ssm-nh-2016-tc1/sequences/fasta-all/B.fas trees/clade-desc.json -
 	#$(DIST)/newick2json trees/a.tre - | ./scripts/tre-continent - - | ./scripts/tre-clade - ~/ac/results/ssm/2015-1215-ssm-nh-2016-tc1/sequences/fasta-all/B.fas trees/clade-desc.json - | $(DIST)/tre2pdf --continents --clades - /tmp/t.pdf && open /tmp/t.pdf
