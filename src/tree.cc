@@ -3,6 +3,8 @@
 #include <cctype>
 #include <ctime>
 #include <cstdlib>
+#include <map>
+#include <list>
 
 #include "tree.hh"
 #include "tree-image.hh"
@@ -75,6 +77,24 @@ std::pair<Date, Date> Tree::min_max_date() const
 
 // ----------------------------------------------------------------------
 
+std::pair<double, double> Tree::min_max_edge() const
+{
+    double min_edge = 1e99, max_edge = 0.0;
+    auto min_max_edge = [&min_edge, &max_edge](const Node& aNode) -> void {
+        if (aNode.edge_length > 0.0) {
+            if (aNode.edge_length < min_edge)
+                min_edge = aNode.edge_length;
+            if (max_edge < aNode.edge_length)
+                max_edge = aNode.edge_length;
+        }
+    };
+    iterate<const Node&>(*this, min_max_edge, min_max_edge);
+    return std::make_pair(min_edge, max_edge);
+
+} // Tree::min_max_edge
+
+// ----------------------------------------------------------------------
+
 void Tree::print(std::ostream& out) const
 {
     size_t indent = 0;
@@ -98,6 +118,26 @@ void Tree::print(std::ostream& out) const
     iterate(*this, p_name, p_subtree_pre, p_subtree_post);
 
 } // Tree::print
+
+// ----------------------------------------------------------------------
+
+void Tree::print_edges(std::ostream& out) const
+{
+    std::map<double, size_t> edges; // edge length to number of occurences
+    auto collect_edges = [&edges](const Node& aNode) -> void {
+        auto iter_inserted = edges.insert(std::make_pair(aNode.edge_length, 1));
+        if (!iter_inserted.second)
+            ++iter_inserted.first->second;
+    };
+    iterate<const Node&>(*this, collect_edges, collect_edges);
+    typedef std::pair<double, size_t> E;
+    std::list<E> edges_l(edges.begin(), edges.end());
+    edges_l.sort([](const E& a, const E& b) { return a.first < b.first; });
+    for (auto e: edges_l) {
+        out << e.first << " " << e.second << std::endl;
+    }
+
+} // Tree::print_edges
 
 // ----------------------------------------------------------------------
 

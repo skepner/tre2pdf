@@ -53,6 +53,7 @@ void TreeImage::setup(std::string aFilename, const Tree& aTre, const Size& aCanv
 
     const double tree_right_margin = time_series_origin_x - time_series_separator_width;
     tree().adjust_label_scale(*this, aTre, tree_right_margin);
+    tree().adjust_horizontal_step(*this, aTre, tree_right_margin);
 
     double x = tree_right_margin; // tree().origin().x + tree().width();
     if (time_series().show()) {
@@ -298,7 +299,25 @@ void TreePart::adjust_label_scale(TreeImage& aMain, const Tree& aTre, double tre
 
 // ----------------------------------------------------------------------
 
-double TreePart::tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength)
+void TreePart::adjust_horizontal_step(TreeImage& aMain, const Tree& aTre, double tree_right_margin)
+{
+    while (true) {
+        const double save_h_step = mHorizontalStep;
+        const double save_width = mWidth;
+        mHorizontalStep *= 1.05;
+        mWidth = tree_width(aMain, aTre, mRootEdge);
+        if ((mWidth + mOrigin.x) >= tree_right_margin) {
+            mHorizontalStep = save_h_step;
+            mWidth = save_width;
+            break;
+        }
+    }
+
+} // TreePart::adjust_horizontal_step
+
+// ----------------------------------------------------------------------
+
+double TreePart::tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength) const
 {
     Surface& surface = aMain.surface();
     double r = 0;

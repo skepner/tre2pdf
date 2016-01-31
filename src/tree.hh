@@ -65,7 +65,9 @@ class Tree : public Node
  public:
     void analyse();
     void print(std::ostream& out) const;
+    void print_edges(std::ostream& out) const;
     std::pair<Date, Date> min_max_date() const;
+    std::pair<double, double> min_max_edge() const;
 
 }; // class Tree
 

@@ -18,6 +18,7 @@ int main(int argc, const char *argv[])
                 Arg<bool>('p', false, Help("print tree")),
                 Arg<bool>("continents", false, Help("color code by continent")),
                 Arg<bool>("clades", false, Help("show clades")),
+                Arg<bool>("edges", false, Help("print edges")),
                 Arg<command_line_arguments::PrintHelp>('h', "help", "Usage: {progname} [options] <source.json> <output.pdf>", Help("print this help screen"))
              );
     cl->min_max(2, 2);                  // one argument expected
@@ -42,6 +43,12 @@ int main(int argc, const char *argv[])
 
         if (cl->get<bool>('p'))
             tre.print(std::cout);
+
+        if (cl->get<bool>("edges")) {
+            tre.print_edges(std::cout);
+            auto min_max = tre.min_max_edge();
+            std::cout << "min: " << min_max.first << "  max: " << min_max.second << std::endl;
+        }
 
         Coloring coloring = nullptr;
         if (cl->get<bool>("continents"))

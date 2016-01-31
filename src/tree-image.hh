@@ -268,7 +268,7 @@ class TreePart
 {
  public:
     inline TreePart() : mHorizontalStep(5.0), mLineWidth(0.2), mLabelScale(1.0), mLineColor(0), mNameOffset(0.2),
-                        mRootEdge(2.0), mOrigin(-1, -1) {}
+                        mRootEdge(0.0), mOrigin(-1, -1) {}
 
     inline const Location& origin() const { return mOrigin; }
     inline double width() const { return mWidth; }
@@ -278,6 +278,7 @@ class TreePart
 
     void setup(TreeImage& aMain, const Tree& aTre);
     void adjust_label_scale(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
+    void adjust_horizontal_step(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
     void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring);
 
     json dump_to_json() const;
@@ -297,7 +298,7 @@ class TreePart
     Location mOrigin;
 
     void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, double aEdgeLength = -1.0);
-    double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0);
+    double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
 
 }; // class TreePart
 
