@@ -103,7 +103,7 @@ def main(options, source_file, result_file):
 
 def load_tree(source_file):
     data = json.load(sys.stdin if source_file == "-" else open(source_file))
-    if data.get("version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
+    if data.get("__version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
         raise RuntimeError("Unrecognized source data")
     return data
 
