@@ -189,7 +189,7 @@ json dump_to_json(const Node& aNode)
 void tree_from_json(Tree& aTree, std::string aSource, TreeImage& aTreeImage)
 {
     auto j = json::parse(aSource);
-    if (j["__version"] != TREE_JSON_DUMP_VERSION)
+    if (j["  version"] != TREE_JSON_DUMP_VERSION)
         throw std::runtime_error(std::string("cannot import tree: unsupported version") + j["version"].get<std::string>());
     load_from_json(aTree, j["tree"]);
     if (j.count("_settings"))
@@ -234,7 +234,7 @@ void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, cons
     std::strftime(date_buf, sizeof(date_buf), "%Y-%m-%d %H:%M %Z", std::localtime(&t));
 
     json j = {
-        {"__version", TREE_JSON_DUMP_VERSION},
+        {"  version", TREE_JSON_DUMP_VERSION},
         {"_settings", aTreeImage.dump_to_json()},
         {"updated", {{
                 {"user", std::getenv("USER")},
