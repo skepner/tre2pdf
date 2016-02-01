@@ -141,16 +141,24 @@ void Tree::print_edges(std::ostream& out) const
 
 // ----------------------------------------------------------------------
 
-void Tree::fix_human_in_labels()
+void Tree::fix_labels()
 {
-    auto fix_human = [](Node& aNode) -> void {
-        auto const pos = aNode.name.find("/HUMAN/");
-        if (pos != std::string::npos)
-            aNode.name.erase(pos, 6);
+    const std::list<std::pair<std::string, size_t>> to_remove {
+        {"/HUMAN/", 6},
+        {"(H3N2)/", 6},
+        {"(H1N1)/", 6},
+    };
+
+    auto fix_human = [&to_remove](Node& aNode) -> void {
+        for (auto e: to_remove) {
+            auto const pos = aNode.name.find(e.first);
+            if (pos != std::string::npos)
+                aNode.name.erase(pos, e.second);
+        }
     };
     iterate<Node&>(*this, fix_human);
 
-} // Tree::fix_human_in_labels
+} // Tree::fix_labels
 
 // ----------------------------------------------------------------------
 

@@ -19,7 +19,7 @@ int main(int argc, const char *argv[])
                 Arg<bool>("continents", false, Help("color code by continent")),
                 Arg<bool>("clades", false, Help("show clades")),
                 Arg<bool>("edges", false, Help("print edges")),
-                Arg<bool>("fix-human-in-labels", false, Help("Remove /HUMAN/ from labels before drawing them")),
+                Arg<bool>("fix-labels", false, Help("Remove /HUMAN/ from labels, remove (H3N2) atc. from labels before drawing them")),
                 Arg<command_line_arguments::PrintHelp>('h', "help", "Usage: {progname} [options] <source.json> <output.pdf>", Help("print this help screen"))
              );
     cl->min_max(2, 2);                  // one argument expected
@@ -55,8 +55,8 @@ int main(int argc, const char *argv[])
         if (cl->get<bool>("continents"))
             coloring = TreeImage::coloring_by_continent;
 
-        if (cl->get<bool>("fix-human-in-labels"))
-            tre.fix_human_in_labels();
+        if (cl->get<bool>("fix-labels"))
+            tre.fix_labels();
 
         tree_image.clades().show(cl->get<bool>("clades"));
         tree_image.make_pdf(cl->arg(1), tre, coloring);

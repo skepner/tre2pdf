@@ -66,7 +66,7 @@ class Tree : public Node
     void analyse();
     void print(std::ostream& out) const;
     void print_edges(std::ostream& out) const;
-    void fix_human_in_labels();
+    void fix_labels();
     std::pair<Date, Date> min_max_date() const;
     std::pair<double, double> min_max_edge() const;
 
