@@ -141,6 +141,19 @@ void Tree::print_edges(std::ostream& out) const
 
 // ----------------------------------------------------------------------
 
+void Tree::fix_human_in_labels()
+{
+    auto fix_human = [](Node& aNode) -> void {
+        auto const pos = aNode.name.find("/HUMAN/");
+        if (pos != std::string::npos)
+            aNode.name.erase(pos, 6);
+    };
+    iterate<Node&>(*this, fix_human);
+
+} // Tree::fix_human_in_labels
+
+// ----------------------------------------------------------------------
+
 json dump_to_json(const Node& aNode)
 {
     json j = {{"edge_length", aNode.edge_length}};

@@ -43,11 +43,11 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
 * Generate pdf.
 
-        ./dist/tre2pdf --continents --clades <input.json> <output.pdf>
+        ./dist/tre2pdf --continents --clades --fix-human-in-labels <input.json> <output.pdf>
 
 * Do everything using pipe.
 
-        ./dist/newick2json <input.tre> - | ./scripts/tre-continent --acmacs=https://localhost:1168 - - | ./scripts/tre-clade - <sequences.fasta> <clade-desc.json> - | ./dist/tre2pdf --continents --clades - <output.pdf>
+        ./dist/newick2json <input.tre> - | ./scripts/tre-continent --acmacs=https://localhost:1168 - - | ./scripts/tre-clade - <sequences.fasta> <clade-desc.json> - | ./dist/tre2pdf --continents --clades --fix-human-in-labels - <output.pdf>
 
 * Adjusting various settings.
 
