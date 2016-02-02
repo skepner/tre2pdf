@@ -576,13 +576,16 @@ void Clades::draw_clade(TreeImage& aMain, const CladeArrow& aClade)
 
     surface.double_arrow({x, top}, {x, bottom}, mArrowColor, mLineWidth, mArrowWidth);
     surface.text({x + aClade.label_offset, label_vpos}, aClade.label, mLabelColor, mLabelFontSize, aClade.label_rotation);
-    double separator_x = x;
+    double separator_left = aMain.tree().origin().x;
+    double separator_right = x;
     if (mSeparatorJustInTree)
-        separator_x = aMain.tree().origin().x + aMain.tree().width();
+        separator_right = aMain.tree().origin().x + aMain.tree().width();
+    else if (mSeparatorJustInTimeSeries)
+        separator_left = aMain.time_series().origin().x;
     if (aClade.begin > 0)
-        surface.line({separator_x, top}, {aMain.tree().origin().x, top}, mSeparatorColor, mSeparatorWidth);
+        surface.line({separator_right, top}, {separator_left, top}, mSeparatorColor, mSeparatorWidth);
     if (aClade.end < static_cast<int>(aMain.tree().number_of_lines() - 1))
-        surface.line({separator_x, bottom}, {aMain.tree().origin().x, bottom}, mSeparatorColor, mSeparatorWidth);
+        surface.line({separator_right, bottom}, {separator_left, bottom}, mSeparatorColor, mSeparatorWidth);
 
 } // Clades::draw_clade
 
@@ -624,6 +627,7 @@ json Clades::dump_to_json() const
         {"separator_color", mSeparatorColor},
         {"separator_width", mSeparatorWidth},
         {"separator_just_in_tree", mSeparatorJustInTree},
+        {"separator_just_in_time_series", mSeparatorJustInTimeSeries},
         {"origin_x", mOrigin.x},
         {"per_clade", mClades},
           // for information, not re-read
@@ -649,6 +653,7 @@ void Clades::load_from_json(const json& j)
     from_json(j, "label_color", mLabelColor);
     from_json(j, "separator_color", mSeparatorColor);
     from_json(j, "separator_just_in_tree", mSeparatorJustInTree);
+    from_json(j, "separator_just_in_time_series", mSeparatorJustInTimeSeries);
 
     from_json_if_non_negative(j, "origin_x", mOrigin.x);
 

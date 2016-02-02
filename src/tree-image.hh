@@ -154,7 +154,7 @@ class Clades
  public:
     inline Clades() : mShow(false), mSlotWidth(5.0), mLineWidth(1.0), mArrowWidth(3), mArrowColor(0), mArrowExtra(0.5),
                       mLabelColor(0), mLabelFontSize(10.0), mSeparatorColor(0x808080),
-                      mSeparatorWidth(0.2), mSeparatorJustInTree(true), mOrigin(-1, -1) {}
+                      mSeparatorWidth(0.2), mSeparatorJustInTree(false), mSeparatorJustInTimeSeries(true), mOrigin(-1, -1) {}
 
     inline double width() const { return mShow ? mWidth : 0.0; }
     inline bool show() const { return mShow; }
@@ -182,6 +182,7 @@ class Clades
     Color mSeparatorColor;
     double mSeparatorWidth;
     bool mSeparatorJustInTree;  // draw clade separator just to cover the tree area and not extend to the time series area
+    bool mSeparatorJustInTimeSeries; // draw clade separator just to cover the time series area and not extend to the tree area
 
     Location mOrigin;
     double mWidth;
