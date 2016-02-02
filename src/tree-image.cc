@@ -627,7 +627,9 @@ json Clades::dump_to_json() const
         {"separator_color", mSeparatorColor},
         {"separator_width", mSeparatorWidth},
         {"separator_just_in_tree", mSeparatorJustInTree},
+        {"separator_just_in_tree_comment", "draw clade separator just to cover the tree area and not extend to the time series area"},
         {"separator_just_in_time_series", mSeparatorJustInTimeSeries},
+        {"separator_just_in_time_series_comment", "draw clade separator just to cover the time series area and not extend to the tree area"},
         {"origin_x", mOrigin.x},
         {"per_clade", mClades},
           // for information, not re-read
