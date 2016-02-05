@@ -191,7 +191,7 @@ def translate_to_amino_acid(sequences, min_offset=0, max_offset=2):
 
 # ----------------------------------------------------------------------
 
-sReSubtype = re.compile(r'^(?:B/|A\((H3|H1PDM))')
+sReSubtype = re.compile(r'^(?:B/|A\((H3|H1PDM|H1N1))')
 
 def detect_subtype(sequences):
     for name in sequences:
@@ -199,6 +199,8 @@ def detect_subtype(sequences):
         # logging.info('{} {}'.format(name, m))
         if m:
             subtype = m.group(1) or "B"
+            if subtype == "H1N1":
+                subtype = "H1PDM"
             logging.info('Subtype: {} ({})'.format(subtype, name))
             return subtype
     raise RuntimeError("cannot detect subtype by sequence names")
@@ -210,7 +212,7 @@ SUBTYPE_DATA = {
     # "H3": {"begin": ["QDLPG", "QKLPG", "QKIPG"]}, # "check": [{"position": 159, "expected": "FYS"}]},
     # "H3": {"begin": [[['Q'], ['E', 'K', 'N', 'R'], ['F', 'I', 'L', 'S', 'V'], ['H', 'L', 'P', 'S'], ['E', 'G'], ['N', 'S', 'T'], ['D', 'G', 'N'], ['K', 'N', 'T'], ['C', 'N', 'S'], ['A', 'K', 'M', 'T', 'X'], ['A'], ['M', 'T', 'X'], ['L'], ['C']]]},
     "H3": {"begin": [[['Q'], ['E', 'K', 'N', 'R'], [], [], [], [], [], [], [], [], [], [], ['L'], ['C']]]},
-    "H1PDM": {"begin": ["DTICI"]},
+    "H1PDM": {"begin": ["DTLCIGYHA", "DTICIGYHANN", "DTICMGYHANN", "DTLCIGYHANN", "DTLCIGHHANN", "DTLCISYHANN", "DTLCIXYHANN", "DTLCVGYHANN", "DTLCIGXHANN", "DTLCXGYHANN", "DKLCIGYHANN", "XTLCIGYHANN", "DTLCIGFHANN", "DTLXIGYHANN", "DILCIGYHANN", "DTLCTGYHANN", "DTLCMGYHANN", "DXLCIGYHANN", "DTLCIXXHANN"]},
     "B": {"begin": ["DRICT"]},
     }
 
