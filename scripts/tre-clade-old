@@ -1,0 +1,329 @@
+#! /usr/bin/env python
+# -*- Python -*-
+# license
+# Copyright (c) 2016, The Center For Pathogen Evolution, Department of Zoology, University of Cambridge, UK
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#     1. Redistributions of source code must retain the above copyright
+#        notice, this list of conditions and the following disclaimer.
+#     2. Redistributions in binary form must reproduce the above copyright
+#        notice, this list of conditions and the following disclaimer in the
+#        documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE CENTER FOR PATHOGEN EVOLUTION BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# license.
+
+"""
+Reads json in the phylogenetic-tree-v1 format produced by newick2json,
+reads fasta file that was used to create the tree, i.e. it must have
+the same names as in tree, updates tree with clade for each leaf node.
+"""
+
+from __future__ import print_function
+
+import sys
+if sys.version_info.major != 2:
+    print("This script must be executed with python 2")
+    exit(1)
+
+import os, re, urllib, json, traceback, pprint, logging, datetime
+
+# ======================================================================
+
+def main(options, source_file, fasta_file, clade_desc_file, result_file):
+    exit_code = 0
+    try:
+        data = load_tree(source_file)
+        sequences = translate_to_amino_acid(decode_names(load_fasta(fasta_file)))
+        subtype = detect_subtype(sequences)
+        sequences = trim_initial_by_subtype(sequences, subtype)
+        clade_desc = load_clade_desc(clade_desc_file, subtype)
+        add_clade(data["tree"], clade_desc, sequences)
+        save_tree(result_file, data)
+    except Exception as err:
+        print('ERROR: cannot execute command:', err, traceback.format_exc())
+        exit_code = 1
+    return exit_code
+
+# ======================================================================
+
+def load_tree(filename):
+    data = json.load(sys.stdin if filename == "-" else open(filename))
+    if data.get("  version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
+        raise RuntimeError("Unrecognized source data")
+    return data
+
+# ----------------------------------------------------------------------
+
+def save_tree(filename, data):
+    json.dump(data, sys.stdout if filename == "-" else open(filename, "w"), indent=2, separators=(',', ': '), sort_keys=True)
+
+# ----------------------------------------------------------------------
+
+def load_clade_desc(filename, subtype):
+    clade_desc = json.load(open(filename))
+    subtype_desc = clade_desc.get(subtype)
+    if not subtype_desc:
+        raise RuntimeError("No clade description for {}".format(subtype))
+    return subtype_desc
+
+# ----------------------------------------------------------------------
+
+class FastaReaderError (Exception):
+    pass
+
+def load_fasta(filename):
+    sequences = {}
+
+    def read_entries(source):
+        sequence = ''
+        raw_name = None
+        for line_no, line in enumerate(source, start=1):
+            try:
+                line = line.strip()
+            except:
+                raise FastaReaderError('{filename}:{line_no}: cannot decode line'.format(filename=filename, line_no=line_no))
+            if not line or line[0] == ';':               # empty or comment line
+                pass
+            elif line[0] == '>':
+                if raw_name:
+                    if not sequence:
+                        raise FastaReaderError('{filename}:{line_no}: {raw_name!r} without sequence'.format(raw_name=raw_name, filename=filename, line_no=line_no))
+                    check_sequence(sequence, line_no)
+                    yield {'raw_name': raw_name, 'sequence': sequence.upper()}
+                sequence = ''
+                raw_name = line[1:]
+            else:
+                if not raw_name:
+                    raise FastaReaderError('{filename}:{line_no}: sequence without name'.format(filename=filename, line_no=line_no))
+                sequence += line
+        if raw_name:
+            if not sequence:
+                raise FastaReaderError('{filename}:EOF: {raw_name!r} without sequence'.format(raw_name=raw_name, filename=filename))
+            yield {'raw_name': raw_name, 'sequence': sequence.upper()}
+
+    sReSequence = re.compile(r"^[A-Za-z\-~:\*\.]+$")
+
+    def check_sequence(sequence, line_no):
+        if not sReSequence.match(sequence):
+            raise FastaReaderError('{filename}:{line_no}: invalid sequence read: {sequence}'.format(sequence=sequence, filename=filename, line_no=line_no))
+
+    def add_entry(entry, ignore_duplicates=True, report_duplicates=False):
+        if entry['raw_name'] in sequences and entry['sequence'] != sequences[entry['raw_name']]:
+            if not ignore_duplicates:
+                raise FastaReaderError("Duplicating name: {}, different sequences.".format(entry['raw_name']))
+            elif report_duplicates:
+                logging.warning("Duplicating name: {}, different sequences.".format(entry['raw_name']))
+        else:
+            sequences[entry['raw_name']] = entry['sequence']
+
+    for entry in read_entries(open(filename)):
+        add_entry(entry)
+    logging.info("{} unique sequence names read from {}".format(len(sequences), filename))
+    return sequences
+
+# ----------------------------------------------------------------------
+
+sReNameDecoder = re.compile(r'%([0-9A-Fa-f][0-9A-Fa-f])')
+
+def decode_names(sequences):
+
+    def replace(match):
+        c = int(match.group(1), 16)
+        return chr(c)
+
+    def decode_name(name):
+        return sReNameDecoder.sub(replace, name)
+
+    return {decode_name(n): s for n, s in sequences.items()}
+
+# ----------------------------------------------------------------------
+
+CODON_TO_PROTEIN = {
+    'UGC': 'C', 'GTA': 'V', 'GTG': 'V', 'CCT': 'P', 'CUG': 'L', 'AGG': 'R', 'CTT': 'L', 'CUU': 'L',
+    'CTG': 'L', 'GCU': 'A', 'CCG': 'P', 'AUG': 'M', 'GGC': 'G', 'UUA': 'L', 'GAG': 'E', 'UGG': 'W',
+    'UUU': 'F', 'UUG': 'L', 'ACU': 'T', 'TTA': 'L', 'AAT': 'N', 'CGU': 'R', 'CCA': 'P', 'GCC': 'A',
+    'GCG': 'A', 'TTG': 'L', 'CAT': 'H', 'AAC': 'N', 'GCA': 'A', 'GAU': 'D', 'UAU': 'Y', 'CAC': 'H',
+    'AUA': 'I', 'GUC': 'V', 'TCG': 'S', 'GGG': 'G', 'AGC': 'S', 'CTA': 'L', 'GCT': 'A', 'CCC': 'P',
+    'ACC': 'T', 'GAT': 'D', 'TCC': 'S', 'UAC': 'Y', 'CAU': 'H', 'UCG': 'S', 'CAA': 'Q', 'UCC': 'S',
+    'AGU': 'S', 'TTT': 'F', 'ACA': 'T', 'ACG': 'T', 'CGC': 'R', 'TGT': 'C', 'CAG': 'Q', 'GUA': 'V',
+    'GGU': 'G', 'AAG': 'K', 'AGA': 'R', 'ATA': 'I', 'TAT': 'Y', 'UCU': 'S', 'TCA': 'S', 'GAA': 'E',
+    'AGT': 'S', 'TCT': 'S', 'ACT': 'T', 'CGA': 'R', 'GGT': 'G', 'TGC': 'C', 'UGU': 'C', 'CUC': 'L',
+    'GAC': 'D', 'UUC': 'F', 'GTC': 'V', 'ATT': 'I', 'TAC': 'Y', 'CUA': 'L', 'TTC': 'F', 'GTT': 'V',
+    'UCA': 'S', 'AUC': 'I', 'GGA': 'G', 'GUG': 'V', 'GUU': 'V', 'AUU': 'I', 'CGT': 'R', 'CCU': 'P',
+    'ATG': 'M', 'AAA': 'K', 'TGG': 'W', 'CGG': 'R', 'AAU': 'N', 'CTC': 'L', 'ATC': 'I',
+    # stops
+    'TAA': '*', 'UAA': '*', 'TAG': '*', 'UAG': '*', 'TGA': '*', 'UGA': '*', 'TAR': '*', 'TRA': '*', 'UAR': '*', 'URA': '*',
+    }
+
+def translate_to_amino_acid(sequences, min_offset=0, max_offset=2):
+
+    def translate(seq):
+        best = ""
+        for offset in range(min_offset, max_offset + 1):
+            trans = translate_at(seq, offset)
+            if len(trans) > len(best):
+                best = trans
+        return best
+
+    def translate_at(seq, offset):
+        r = "".join(CODON_TO_PROTEIN.get(codon, "X") for codon in (seq[i:i+3] for i in range(offset, len(seq), 3)))
+        stop = r.find("*")
+        if stop >= 0:
+            r = r[:stop]
+        return r
+
+    for name in sequences:
+        sequences[name] = translate(sequences[name])
+    logging.info('{} sequences translated to amino acid'.format(len(sequences)))
+    return sequences
+
+# ----------------------------------------------------------------------
+
+sReSubtype = re.compile(r'^(?:B/|A\((H3|H1PDM|H1N1))')
+
+def detect_subtype(sequences):
+    for name in sequences:
+        m = sReSubtype.match(name)
+        # logging.info('{} {}'.format(name, m))
+        if m:
+            subtype = m.group(1) or "B"
+            if subtype == "H1N1":
+                subtype = "H1PDM"
+            logging.info('Subtype: {} ({})'.format(subtype, name))
+            return subtype
+    raise RuntimeError("cannot detect subtype by sequence names")
+
+# ----------------------------------------------------------------------
+
+# https://notebooks.antigenic-cartography.org/dave/mds/HAcomparison/HAnumbering/sequences_comparison.html
+SUBTYPE_DATA = {
+    # "H3": {"begin": ["QDLPG", "QKLPG", "QKIPG"]}, # "check": [{"position": 159, "expected": "FYS"}]},
+    # "H3": {"begin": [[['Q'], ['E', 'K', 'N', 'R'], ['F', 'I', 'L', 'S', 'V'], ['H', 'L', 'P', 'S'], ['E', 'G'], ['N', 'S', 'T'], ['D', 'G', 'N'], ['K', 'N', 'T'], ['C', 'N', 'S'], ['A', 'K', 'M', 'T', 'X'], ['A'], ['M', 'T', 'X'], ['L'], ['C']]]},
+    "H3": {"begin": [[['Q'], ['E', 'K', 'N', 'R'], [], [], [], [], [], [], [], [], [], [], ['L'], ['C']]]},
+    "H1PDM": {"begin": ["DTLCIGYHA", "DTICIGYHANN", "DTICMGYHANN", "DTLCIGYHANN", "DTLCIGHHANN", "DTLCISYHANN", "DTLCIXYHANN", "DTLCVGYHANN", "DTLCIGXHANN", "DTLCXGYHANN", "DKLCIGYHANN", "XTLCIGYHANN", "DTLCIGFHANN", "DTLXIGYHANN", "DILCIGYHANN", "DTLCTGYHANN", "DTLCMGYHANN", "DXLCIGYHANN", "DTLCIXXHANN"]},
+    "B": {"begin": ["DRICT"]},
+    }
+
+def trim_initial_by_subtype(sequences, subtype=None):
+    if subtype is None:
+        subtype = detect_subtype(sequences)
+
+    def find_ss(seq, pattern):
+        for pos in range(len(seq) - len(pattern)):
+            found = True
+            for off, p in enumerate(pattern):
+                if p and seq[pos + off] not in p:
+                    found = False
+                    break
+            if found:
+                return pos
+        return -1
+
+    def trim_seq(name, seq):
+        """Align sequence by trimming initial letters if necessary. Also checks and report errors."""
+        valid = True
+        subtype_data = SUBTYPE_DATA[subtype]
+        for b in subtype_data["begin"]:
+            if isinstance(b, str):
+                begin = seq.find(b)
+            elif isinstance(b, list):
+                begin = find_ss(seq, b)
+            else:
+                raise RuntimeError("Error in SUBTYPE_DATA: {}".format(b))
+            if begin >= 0:
+                break
+
+        if begin >= 0:
+            if begin > 0:
+                seq = seq[begin:]
+            for check in subtype_data.get("check", []):
+                if len(seq) < check["position"]:
+                    valid = False
+                    logging.warning('{} is too short ({})'.format(name, len(seq)))
+                elif seq[check["position"] - 1] not in check["expected"]:
+                    valid = False
+                    logging.warning('{} has invalid AA in position {}: {} (expected one of {})'.format(name, check["position"], seq[check["position"] - 1], check["expected"]))
+        elif begin < 0:
+            if len(seq) > 50:
+                logging.warning('Cannot find START-SEQ in {} {}'.format(name, seq))
+            valid = False
+        if valid and len(seq) < 160:
+            valid = False
+        return valid, seq
+
+    for name in list(sequences):
+        valid, trimmed = trim_seq(name, sequences[name])
+        if valid:
+            sequences[name] = trimmed
+        else:
+            # logging.warning("Invalid sequence {}".format(name))
+            del sequences[name]
+    return sequences
+
+# ----------------------------------------------------------------------
+
+def add_clade(data, clade_desc, sequences):
+    clades = {}
+    nodes = {"c": 0}
+
+    def add_clade_r(node):
+        # global clades, nodes, clade_desc, sequences
+        if node.get("name"):
+            nodes["c"] += 1
+            seq = sequences.get(node["name"])
+            if seq:
+                for c in clade_desc["clades"]:
+                    # logging.info('{} ?{}? {}'.format(node["name"], c["clade"], ["{}:{}:{}:{}".format(p["pos"], seq[p["pos"] - 1], p["aa"], seq[p["pos"] - 1] == p["aa"]) for p in c["positions"]]))
+                    if all(len(seq) >= p["pos"] and seq[p["pos"] - 1] == p["aa"] for p in c["positions"]):
+                        node.setdefault("clades", []).append(c["clade"])
+                        clades.setdefault(c["clade"], 0)
+                        clades[c["clade"]] += 1
+            else:
+                pass # logging.warning("No sequence for {}".format(node["name"]))
+        if node.get("subtree"):
+            for e in node["subtree"]:
+                add_clade_r(e)
+
+    add_clade_r(data)
+    logging.info('Nodes: {}  Clades {}'.format(nodes["c"], clades))
+
+# ----------------------------------------------------------------------
+
+try:
+    import optparse
+    parser = optparse.OptionParser(usage='%prog [options] <source-tree.json> <fasta.fas> <clade-desc.json> <resulting-tree.json>')
+
+    parser.add_option('--debug', action='store_true', dest='debug', default=False, help='Enable debugging output.')
+    (options, args) = parser.parse_args()
+    logging_format = "%(levelname)s: %(message)s"
+    if options and options.debug:
+        logging.basicConfig(level=logging.DEBUG, format=logging_format)
+    else:
+        logging.basicConfig(level=logging.INFO, format=logging_format)
+    if len(args) != 4:
+        exit_code = 1
+        print("Error: four arguments at command line expected", file=sys.stderr)
+        parser.print_usage()
+    else:
+        exit_code = main(options, args[0], args[1], args[2], args[3])
+except Exception as err:
+    logging.error('{}\n{}'.format(err, traceback.format_exc()))
+    exit_code = 1
+exit(exit_code)
+
+# ======================================================================
+### Local Variables:
+### eval: (if (fboundp 'eu-rename-buffer) (eu-rename-buffer))
+### End:
