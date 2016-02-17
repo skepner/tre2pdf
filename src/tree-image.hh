@@ -189,6 +189,7 @@ class Clades
 
     struct CladeArrow
     {
+        bool show;
         int begin;
         int end;
         std::string label;
@@ -201,11 +202,12 @@ class Clades
 
         inline CladeArrow() = default;
         inline CladeArrow(int aBegin, int aEnd, std::string aLabel, std::string aId)
-            : begin(aBegin), end(aEnd), label(aLabel), id(aId), slot(-1), label_position("middle"),
+            : show(true), begin(aBegin), end(aEnd), label(aLabel), id(aId), slot(-1), label_position("middle"),
               label_position_offset(0.0), label_rotation(0.0), label_offset(3.0) {}
 
         inline CladeArrow(const json& j)
             {
+                from_json(j, "show", show, true);
                 from_json(j, "begin", begin);
                 from_json(j, "end", end);
                 from_json(j, "_id", id);
@@ -222,6 +224,7 @@ class Clades
             {
                 return json {
                     {"_id", id},
+                    {"show", show},
                     {"begin", begin},
                     {"end", end},
                     {"label", label},
@@ -243,6 +246,7 @@ class Clades
             auto const per = mPerClade.find(aId);
             if (per != mPerClade.end()) {
                 const CladeArrow& ca = per->second;
+                c.show = ca.show;
                 c.label = ca.label;
                 if (ca.begin >= 0)
                     c.begin = ca.begin;

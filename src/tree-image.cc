@@ -548,7 +548,9 @@ void Clades::setup(TreeImage& aMain, const Tree& aTre)
 void Clades::draw(TreeImage& aMain, const Tree& /*aTre*/)
 {
     for (auto c = mClades.cbegin(); c != mClades.cend(); ++c) {
-        draw_clade(aMain, *c);
+        if (c->show) {
+            draw_clade(aMain, *c);
+        }
     }
 
 } // Clades::draw
@@ -595,7 +597,7 @@ void Clades::assign_slots(TreeImage& aMain)
 {
     std::sort(mClades.begin(), mClades.end(), [](const CladeArrow& a, const CladeArrow& b) -> bool { return a.begin == b.begin ? a.end > b.end : a.begin < b.begin; });
     for (auto c = mClades.begin(); c != mClades.end(); ++c) {
-        if (c->slot < 0)
+        if (c->slot < 0 && c->show)
             c->slot = static_cast<int>(c - mClades.begin());
     }
 
@@ -603,7 +605,7 @@ void Clades::assign_slots(TreeImage& aMain)
       // calculate width
     mWidth = 0;
     for (auto c = mClades.begin(); c != mClades.end(); ++c) {
-        auto const width = c->slot * mSlotWidth + c->label_offset + surface.text_size(c->label, mLabelFontSize).width;
+        auto const width = c->show ? c->slot * mSlotWidth + c->label_offset + surface.text_size(c->label, mLabelFontSize).width : 0;
         if (width > mWidth)
             mWidth = width;
     }
