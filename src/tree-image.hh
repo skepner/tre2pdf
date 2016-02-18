@@ -303,8 +303,68 @@ class TreePart
     double mVerticalStep;       // vertical step between name nodes
     Location mOrigin;
 
+    struct BranchAnnotation
+    {
+        bool show;
+        std::string id;
+        std::string label;
+        Color color;
+        double font_size;
+        double label_offset_x;
+        double label_offset_y;
+        bool show_line;
+        Color line_color;
+        double line_width;
+        double line_x;
+        double line_y;
+
+        inline BranchAnnotation() = default;
+        inline BranchAnnotation(const BranchAnnotation&) = default;
+        inline BranchAnnotation(BranchAnnotation&&) = default;
+        inline BranchAnnotation(std::string aId)
+            : show(true), id(aId), label(aId), color(0), font_size(9.0), label_offset_x(0.0), label_offset_y(0.0),
+              show_line(false), line_color(0), line_width(1.0), line_x(10.0), line_y(10.0) {}
+
+        inline BranchAnnotation(const json& j)
+            {
+                from_json(j, "show", show, true);
+                from_json(j, "_id", id);
+                from_json(j, "label", label);
+                from_json(j, "color", color, Color(0));
+                from_json(j, "font_size", font_size, 9.0);
+                from_json(j, "label_offset_x", label_offset_x);
+                from_json(j, "label_offset_y", label_offset_y);
+                from_json(j, "show_line", show_line, false);
+                from_json(j, "line_color", line_color, Color(0));
+                from_json(j, "line_width", line_width, 1.0);
+                from_json(j, "line_x", line_x, 10.0);
+                from_json(j, "line_y", line_y, 10.0);
+            }
+
+        inline operator json() const
+            {
+                return json {
+                    {"_id", id},
+                    {"show", show},
+                    {"label", label},
+                    {"color", color},
+                    {"font_size", font_size},
+                    {"label_offset_x", label_offset_x},
+                    {"label_offset_y", label_offset_y},
+                    {"show_line", show_line},
+                    {"line_color", line_color},
+                    {"line_width", line_width},
+                    {"line_x", line_x},
+                    {"line_y", line_y}
+                };
+            }
+    };
+
+    std::vector<BranchAnnotation> mBranchAnnotations;
+
     void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
+    const BranchAnnotation& find_branch_annotation(std::string id);
 
 }; // class TreePart
 

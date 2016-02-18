@@ -275,14 +275,13 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
     }
     else {
         if (!aNode.name.empty()) {
-            auto font_size = 9.0;
-            auto const ts = surface.text_size(aNode.name, font_size);
+            auto ba = find_branch_annotation(aNode.name);
+            auto const ts = surface.text_size(ba.label, ba.font_size);
             auto text_x = aLeft + (right - aLeft - ts.width) / 2.0;
             if ((text_x + ts.width) > right)
                 text_x = right - ts.width;
             auto text_y = y + ts.height * 1.2;
-            Color color(0x000080);
-            surface.text({text_x, text_y}, aNode.name, color, font_size);
+            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, ba.label, ba.color, ba.font_size);
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
@@ -349,6 +348,23 @@ double TreePart::tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLen
 
 // ----------------------------------------------------------------------
 
+const TreePart::BranchAnnotation& TreePart::find_branch_annotation(std::string id)
+{
+    auto i = std::find_if(mBranchAnnotations.cbegin(), mBranchAnnotations.cend(), [&id](const auto& ba) { return ba.id == id; });
+    const BranchAnnotation* ba = nullptr;
+    if (i == mBranchAnnotations.cend()) {
+        mBranchAnnotations.push_back(id);
+        ba = &mBranchAnnotations.back();
+    }
+    else {
+        ba = &*i;
+    }
+    return *ba;
+
+} // TreePart::find_branch_annotation
+
+// ----------------------------------------------------------------------
+
 json TreePart::dump_to_json() const
 {
     json j = {
@@ -368,6 +384,7 @@ json TreePart::dump_to_json() const
         {"number_of_lines_comment", "number_of_lines is for information only"},
         {"vertical_step", mVerticalStep},
         {"vertical_step_comment", "vertical_step is for information only"},
+        {"branch_annotations", mBranchAnnotations},
     };
 
     return j;
@@ -385,6 +402,13 @@ void TreePart::load_from_json(const json& j)
     from_json_if_non_negative(j, "name_offset", mNameOffset);
     from_json_if_non_negative(j, "root_edge", mRootEdge);
     from_json_if_non_negative(j, "origin_x", mOrigin.x);
+
+    mBranchAnnotations.clear();
+    if (j.count("branch_annotations")) {
+        for (auto i = j["branch_annotations"].begin(); i != j["branch_annotations"].end(); ++i) {
+            mBranchAnnotations.push_back(*i);
+        }
+    }
 
 } // TreePart::load_from_json
 
