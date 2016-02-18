@@ -282,6 +282,11 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
                 text_x = right - ts.width;
             auto text_y = y + ts.height * 1.2;
             surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, ba.label, ba.color, ba.font_size);
+            if (ba.show_line) {
+                auto line_x = aLeft + (right - aLeft) / 2.0;
+                auto line_y = y + ba.line_width * 2.0;
+                surface.line({line_x, line_y}, {line_x + ba.line_x, line_y + ba.line_y}, ba.line_color, ba.line_width);
+            }
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
