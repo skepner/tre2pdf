@@ -275,18 +275,7 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
     }
     else {
         if (!aNode.name.empty()) {
-            auto ba = find_branch_annotation(aNode.name);
-            auto const ts = surface.text_size(ba.label, ba.font_size);
-            auto text_x = aLeft + (right - aLeft - ts.width) / 2.0;
-            if ((text_x + ts.width) > right)
-                text_x = right - ts.width;
-            auto text_y = y + ts.height * 1.2;
-            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, ba.label, ba.color, ba.font_size);
-            if (ba.show_line) {
-                auto line_x = aLeft + (right - aLeft) / 2.0;
-                auto line_y = y + ba.line_width * 2.0;
-                surface.line({line_x, line_y}, {line_x + ba.line_x, line_y + ba.line_y}, ba.line_color, ba.line_width);
-            }
+            show_branch_annotation(surface, aNode.name, aLeft, right, y);
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
@@ -295,6 +284,34 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
     }
 
 } // TreePart::draw_node
+
+// ----------------------------------------------------------------------
+
+void TreePart::show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y)
+{
+    auto ba = find_branch_annotation(id);
+    auto const branch_center = (branch_right + branch_left) / 2.0;
+    auto text_y = branch_y;
+    std::string::size_type pos = 0;
+    while (true) {
+        std::string::size_type end = ba.label.find('\n', pos);
+        auto text = end == std::string::npos ? std::string(ba.label, pos) : std::string(ba.label, pos, end - pos);
+        auto const ts = surface.text_size(text.empty() ? "I" : text, ba.font_size);
+        auto text_x = branch_center - ts.width / 2.0;
+        if ((text_x + ts.width) > branch_right)
+            text_x = branch_right - ts.width;
+        text_y += ts.height * ba.label_interleave;
+        surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, ba.font_size);
+        if (end == std::string::npos)
+            break;
+        pos = end + 1;
+    }
+    if (ba.show_line) {
+        auto line_y = branch_y + ba.line_width * 2.0;
+        surface.line({branch_center, line_y}, {branch_center + ba.line_x, line_y + ba.line_y}, ba.line_color, ba.line_width);
+    }
+
+} // TreePart::show_branch_annotation
 
 // ----------------------------------------------------------------------
 
