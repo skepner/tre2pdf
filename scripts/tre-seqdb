@@ -109,8 +109,8 @@ def add_amino_acid_at(data, seqdb, poss):
                             aa_at[s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
                             aa_found[p][aa] += 1
         else:
-            for no, e in enumerate(node["subtree"]):
-                add_aa_r(e)
+            for subtree in node["subtree"]:
+                add_aa_r(subtree)
 
     add_aa_r(data)
     module_logger.info("\n{}".format(json.dumps(aa_found, indent=2, sort_keys=True)))
@@ -118,7 +118,51 @@ def add_amino_acid_at(data, seqdb, poss):
 # ----------------------------------------------------------------------
 
 def add_branch_annotations(data):
-    pass
+
+    annotations = []
+
+    def update_aa_at(x, a):
+        for k, v in a.items():
+            if k in x:
+                x[k] = "".join(sorted(set(x[k]) | set(v)))
+            else:
+                x[k] = v
+
+    def ba_r(node):
+        x_aa_at = {}
+        if node.get("subtree"):
+            try:
+                del node["name"]
+            except:
+                pass
+            for subtree in node["subtree"]:
+                if subtree.get("subtree"):
+                    aa_at = ba_r(subtree)
+                else:
+                    aa_at = subtree.get("aa_at", {})
+                update_aa_at(x_aa_at, aa_at)
+            node["X_aa_at"] = x_aa_at
+            for pos in x_aa_at:
+                prev = None
+                for subtree in node["subtree"]:
+                    x = subtree.get("X_aa_at")
+                    if x:
+                        saa = x[pos]
+                        if len(saa) > 1:
+                            break
+                        if prev is not None:
+                            paa = (prev.get("X_aa_at") or prev.get("aa_at"))[pos]
+                            if paa != saa:
+                                subtree["name"] = "{}{}{}".format(paa, pos, saa)
+                                annotations.append(subtree["name"])
+                                break
+                    elif len(subtree.get("aa_at")[pos]) > 1:
+                        break
+                    prev = subtree
+        return x_aa_at
+
+    ba_r(data)
+    module_logger.info('Annotations\n{}'.format("\n".join(annotations)))
 
 # ----------------------------------------------------------------------
 
@@ -127,8 +171,8 @@ def update_branch_annotation_settings(data):
     def transitions_r(node):
         transitions = set()
         if node.get("subtree"):
-            for no, e in enumerate(node["subtree"]):
-                transitions |= transitions_r(e)
+            for subtree in node["subtree"]:
+                transitions |= transitions_r(subtree)
             if node.get("name"):
                 transitions.add(node["name"])
         return transitions
