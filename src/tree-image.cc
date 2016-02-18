@@ -298,10 +298,12 @@ void TreePart::show_branch_annotation(Surface& surface, std::string id, double b
         auto text = end == std::string::npos ? std::string(ba.label, pos) : std::string(ba.label, pos, end - pos);
         auto const ts = surface.text_size(text.empty() ? "I" : text, ba.font_size);
         auto text_x = branch_center - ts.width / 2.0;
-        if ((text_x + ts.width) > branch_right)
+        if (ba.label_offset_x == 0.0 && (text_x + ts.width) > branch_right)
             text_x = branch_right - ts.width;
         text_y += ts.height * ba.label_interleave;
         surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, ba.font_size);
+        if ((text_x + ba.label_offset_x) < 0)
+            std::cerr << text << " " << (text_x + ba.label_offset_x) << std::endl;
         if (end == std::string::npos)
             break;
         pos = end + 1;
