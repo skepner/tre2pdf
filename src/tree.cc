@@ -162,11 +162,41 @@ void Tree::fix_labels()
 
 // ----------------------------------------------------------------------
 
+void load_from_json(Node& aNode, const json& j)
+{
+    if (j.count("edge_length"))
+        aNode.edge_length = j["edge_length"];
+    if (j.count("name"))
+        aNode.name = j["name"];
+    if (j.count("subtree")) {
+        auto subtree = j["subtree"];
+        if (!subtree.is_array())
+            throw std::runtime_error(std::string("cannot import tree: unrecognized subtree: ") + subtree.dump());
+        for (auto e = subtree.begin(); e != subtree.end(); ++e) {
+            Node node;
+            load_from_json(node, *e);
+            aNode.subtree.push_back(std::forward<Node>(node));
+        }
+    }
+    else {
+        if (j.count("date"))
+            aNode.date = j["date"];
+        if (j.count("continent"))
+            aNode.continent = j["continent"];
+        if (j.count("clades"))
+            aNode.clades = static_cast<const std::vector<std::string>&>(j["clades"]);
+    }
+
+} // load_from_json
+
+// ----------------------------------------------------------------------
+
 json dump_to_json(const Node& aNode)
 {
     json j = {{"edge_length", aNode.edge_length}};
-    if (aNode.is_leaf()) {
+    if (!aNode.name.empty())
         j["name"] = aNode.name;
+    if (aNode.is_leaf()) {
         if (!aNode.date.empty())
             j["date"] = aNode.date.display();
         if (!aNode.continent.empty())
@@ -196,34 +226,6 @@ void tree_from_json(Tree& aTree, std::string aSource, TreeImage& aTreeImage)
         aTreeImage.load_from_json(j["_settings"]);
 
 } // tree_from_json
-
-// ----------------------------------------------------------------------
-
-void load_from_json(Node& aNode, const json& j)
-{
-    if (j.count("edge_length"))
-        aNode.edge_length = j["edge_length"];
-    if (j.count("subtree")) {
-        auto subtree = j["subtree"];
-        if (!subtree.is_array())
-            throw std::runtime_error(std::string("cannot import tree: unrecognized subtree: ") + subtree.dump());
-        for (auto e = subtree.begin(); e != subtree.end(); ++e) {
-            Node node;
-            load_from_json(node, *e);
-            aNode.subtree.push_back(std::forward<Node>(node));
-        }
-    }
-    else {
-        aNode.name = j["name"];
-        if (j.count("date"))
-            aNode.date = j["date"];
-        if (j.count("continent"))
-            aNode.continent = j["continent"];
-        if (j.count("clades"))
-            aNode.clades = static_cast<const std::vector<std::string>&>(j["clades"]);
-    }
-
-} // load_from_json
 
 // ----------------------------------------------------------------------
 

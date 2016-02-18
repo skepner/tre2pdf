@@ -274,6 +274,16 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
+        if (!aNode.name.empty()) {
+            auto font_size = 9.0;
+            auto const ts = surface.text_size(aNode.name, font_size);
+            auto text_x = aLeft + (right - aLeft - ts.width) / 2.0;
+            if ((text_x + ts.width) > right)
+                text_x = right - ts.width;
+            auto text_y = y + ts.height * 1.2;
+            Color color(0x000080);
+            surface.text({text_x, text_y}, aNode.name, color, font_size);
+        }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
             draw_node(aMain, *node, right, aColoring);

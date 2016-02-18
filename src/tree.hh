@@ -19,9 +19,9 @@ class Node
     inline Node(std::string aName, double aEdgeLength, const Date& aDate = Date()) : edge_length(aEdgeLength), name(aName), date(aDate), line_no(0) {}
 
     double edge_length;              // indent of node or subtree
+    std::string name;                // node nae or branch annotation
 
       // name part
-    std::string name;
     Date date;
     size_t line_no;             // line at which the name is drawn
 
