@@ -28,7 +28,7 @@ reads seqdb ("sequence-database-v1"),
 updates tree with clade and amino-acid information for each leaf node.
 """
 
-import sys, os, re, json, traceback
+import sys, os, re, json, traceback, collections
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 import logging; module_logger = logging.getLogger(__name__)
 
@@ -42,7 +42,10 @@ def main(args):
         if args.add_clade_information:
             add_clade(data["tree"], seqdb)
         if args.pos is not None:
-            add_amino_acid_at(data, seqdb, args.pos)
+            add_amino_acid_at(data["tree"], seqdb, args.pos)
+        if args.branch_annotations:
+            add_branch_annotations(data["tree"])
+            update_branch_annotation_settings(data)
         save_tree(args.result[0], data)
     except Exception as err:
         print('ERROR: cannot execute command:', err, traceback.format_exc())
@@ -79,52 +82,110 @@ def add_clade(data, seqdb):
 
 # ----------------------------------------------------------------------
 
-def add_amino_acid_at(data, seqdb, pos):
-    aas = {}
-    pos_s = str(pos)
-    transitions = set()
+def add_amino_acid_at(data, seqdb, poss):
+    pp = {p: int(p) for p in poss.split(",")}
+    aa_found = {p: collections.defaultdict(int) for p in pp.values()}
+
+    def del_old(node):
+        if node.get("aa_at"):
+            for p in pp:
+                try:
+                    del node["aa_at"][p]
+                except:
+                    pass
 
     def add_aa_r(node):
-        used_aa = set()
         if not node.get("subtree"):
             if node.get("name"):
-                if node.get("aa_at") and node["aa_at"].get(pos_s): del node["aa_at"][pos_s] # delete old data
+                del_old(node)
+                aa_at = node.setdefault("aa_at", {})
                 seq = find_name_in_seqdb(seqdb, node["name"])
-                if seq and seq.get("aa") and seq.get("shift") is not None and len(seq["aa"]) >= (pos - seq["shift"]):
-                    aa = seq["aa"][pos - 1 - seq["shift"]]
-                    node.setdefault("aa_at", {})[pos_s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
-                    if aa in aas:
-                        aas[aa] += 1
-                    else:
-                        aas[aa] = 1
-                    used_aa.add(aa)
+                if seq and seq.get("aa") and seq.get("shift") is not None:
+                    ls = len(seq["aa"])
+                    for s, p in pp.items():
+                        pos = p - seq["shift"] - 1
+                        if pos > 0 and pos < ls:
+                            aa = seq["aa"][pos]
+                            aa_at[s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
+                            aa_found[p][aa] += 1
         else:
-            used_in_subtree = [None] * len(node["subtree"])
             for no, e in enumerate(node["subtree"]):
-                used = add_aa_r(e)
-                if len(used) == 1:
-                    used_in_subtree[no] = list(used)[0]
-                used_aa |= used
-            if used_in_subtree[0] not in [None, "X"]:
-                for no, e in enumerate(node["subtree"][1:], start=1):
-                    if e.get("subtree") and used_in_subtree[no] not in [None, "X"] and len(set(used_in_subtree[:no])) == 1 and used_in_subtree[no] != used_in_subtree[0]:
-                        names = set(e.get("name", "").split())
-                        transition = "{}{}{}".format(used_in_subtree[0], pos, used_in_subtree[no])
-                        names.add(transition)
-                        e["name"] = " ".join(sorted(names, key=lambda a: int(a[1:-1])))
-                        transitions.add(e["name"])
-                        # module_logger.info('{} {} {}'.format(e["name"], no, used_in_subtree))
-        return used_aa
+                add_aa_r(e)
 
-    add_aa_r(data["tree"])
-    logging.info('AA: {}'.format(aas))
-    logging.info('Transitions: {}'.format(transitions))
-    if transitions:
-        bas = data["_settings"]["tree"].get("branch_annotations", [])
-        for tr in transitions:
-            if not any(e for e in bas if e["_id"] == tr):
-                bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 0.5, "line_x": -10, "line_y": 5, "show": True, "show_line": False})
-        data["_settings"]["tree"]["branch_annotations"] = bas
+    add_aa_r(data)
+    module_logger.info("\n{}".format(json.dumps(aa_found, indent=2, sort_keys=True)))
+
+# ----------------------------------------------------------------------
+
+def add_branch_annotations(data):
+    pass
+
+# ----------------------------------------------------------------------
+
+def update_branch_annotation_settings(data):
+
+    def transitions_r(node):
+        transitions = set()
+        if node.get("subtree"):
+            for no, e in enumerate(node["subtree"]):
+                transitions |= transitions_r(e)
+            if node.get("name"):
+                transitions.add(node["name"])
+        return transitions
+
+    bas = data["_settings"]["tree"].setdefault("branch_annotations", [])
+    for tr in transitions_r(data["tree"]):
+        if not any(e for e in bas if e["_id"] == tr):
+            bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 0.5, "line_x": -10, "line_y": 5, "show": True, "show_line": False})
+
+# ----------------------------------------------------------------------
+
+# def add_amino_acid_at(data, seqdb, pos):
+#     aas = {}
+#     pos_s = str(pos)
+#     transitions = set()
+
+#     def add_aa_r(node):
+#         used_aa = set()
+#         if not node.get("subtree"):
+#             if node.get("name"):
+#                 if node.get("aa_at") and node["aa_at"].get(pos_s): del node["aa_at"][pos_s] # delete old data
+#                 seq = find_name_in_seqdb(seqdb, node["name"])
+#                 if seq and seq.get("aa") and seq.get("shift") is not None and len(seq["aa"]) >= (pos - seq["shift"]):
+#                     aa = seq["aa"][pos - 1 - seq["shift"]]
+#                     node.setdefault("aa_at", {})[pos_s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
+#                     if aa in aas:
+#                         aas[aa] += 1
+#                     else:
+#                         aas[aa] = 1
+#                     used_aa.add(aa)
+#         else:
+#             used_in_subtree = [None] * len(node["subtree"])
+#             for no, e in enumerate(node["subtree"]):
+#                 used = add_aa_r(e)
+#                 if len(used) == 1:
+#                     used_in_subtree[no] = list(used)[0]
+#                 used_aa |= used
+#             if used_in_subtree[0] not in [None, "X"]:
+#                 for no, e in enumerate(node["subtree"][1:], start=1):
+#                     if e.get("subtree") and used_in_subtree[no] not in [None, "X"] and len(set(used_in_subtree[:no])) == 1 and used_in_subtree[no] != used_in_subtree[0]:
+#                         names = set(e.get("name", "").split())
+#                         transition = "{}{}{}".format(used_in_subtree[0], pos, used_in_subtree[no])
+#                         names.add(transition)
+#                         e["name"] = " ".join(sorted(names, key=lambda a: int(a[1:-1])))
+#                         transitions.add(e["name"])
+#                         # module_logger.info('{} {} {}'.format(e["name"], no, used_in_subtree))
+#         return used_aa
+
+#     add_aa_r(data["tree"])
+#     logging.info('AA: {}'.format(aas))
+#     logging.info('Transitions: {}'.format(transitions))
+#     if transitions:
+#         bas = data["_settings"]["tree"].get("branch_annotations", [])
+#         for tr in transitions:
+#             if not any(e for e in bas if e["_id"] == tr):
+#                 bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 0.5, "line_x": -10, "line_y": 5, "show": True, "show_line": False})
+#         data["_settings"]["tree"]["branch_annotations"] = bas
 
 # ----------------------------------------------------------------------
 
@@ -227,7 +288,8 @@ try:
     parser.add_argument('source', nargs=1, help='source tree in the phylogenetic-tree-v1 format produced by newick2json.')
     parser.add_argument('result', nargs=1, help='resulting tree in the phylogenetic-tree-v1 format.')
     parser.add_argument('--clade', action='store_true', dest='add_clade_information', default=False, help='Add clade information to nodes.')
-    parser.add_argument('--pos', action='store', dest='pos', type=int, default=None, help='Add amino-acid information at this position to each node.')
+    parser.add_argument('--pos', action='store', dest='pos', default=None, help='Comma separated list of positions. Add amino-acid information at this position to each node.')
+    parser.add_argument('--branch-annotations', action='store_true', dest='branch_annotations', default=False, help='Add branch annotations.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
