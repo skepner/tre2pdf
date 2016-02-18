@@ -42,7 +42,7 @@ def main(args):
         if args.add_clade_information:
             add_clade(data["tree"], seqdb)
         if args.pos is not None:
-            add_amino_acid_at(data["tree"], seqdb, args.pos)
+            add_amino_acid_at(data, seqdb, args.pos)
         save_tree(args.result[0], data)
     except Exception as err:
         print('ERROR: cannot execute command:', err, traceback.format_exc())
@@ -81,25 +81,50 @@ def add_clade(data, seqdb):
 
 def add_amino_acid_at(data, seqdb, pos):
     aas = {}
+    pos_s = str(pos)
+    transitions = set()
 
     def add_aa_r(node):
+        used_aa = set()
         if not node.get("subtree"):
             if node.get("name"):
-                if node.get("aa_at") and node["aa_at"].get(pos): del node["aa_at"][pos] # delete old data
+                if node.get("aa_at") and node["aa_at"].get(pos_s): del node["aa_at"][pos_s] # delete old data
                 seq = find_name_in_seqdb(seqdb, node["name"])
                 if seq and seq.get("aa") and seq.get("shift") is not None and len(seq["aa"]) >= (pos - seq["shift"]):
                     aa = seq["aa"][pos - 1 - seq["shift"]]
-                    node.setdefault("aa_at", {})[pos] = aa
+                    node.setdefault("aa_at", {})[pos_s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
                     if aa in aas:
                         aas[aa] += 1
                     else:
                         aas[aa] = 1
+                    used_aa.add(aa)
         else:
-            for e in node["subtree"]:
-                add_aa_r(e)
+            used_in_subtree = [None] * len(node["subtree"])
+            for no, e in enumerate(node["subtree"]):
+                used = add_aa_r(e)
+                if len(used) == 1:
+                    used_in_subtree[no] = list(used)[0]
+                used_aa |= used
+            if used_in_subtree[0] is not None:
+                for no, e in enumerate(node["subtree"][1:], start=1):
+                    if e.get("subtree") and used_in_subtree[no] is not None and len(set(used_in_subtree[:no])) == 1 and used_in_subtree[no] != used_in_subtree[0]:
+                        names = set(e.get("name", "").split())
+                        transition = "{}{}{}".format(used_in_subtree[0], pos, used_in_subtree[no])
+                        names.add(transition)
+                        e["name"] = " ".join(sorted(names, key=lambda a: int(a[1:-1])))
+                        transitions.add(e["name"])
+                        # module_logger.info('{} {} {}'.format(e["name"], no, used_in_subtree))
+        return used_aa
 
-    add_aa_r(data)
+    add_aa_r(data["tree"])
     logging.info('AA: {}'.format(aas))
+    logging.info('Transitions: {}'.format(transitions))
+    if transitions:
+        bas = data["_settings"]["tree"].get("branch_annotations", [])
+        for tr in transitions:
+            if not any(e for e in bas if e["_id"] == tr):
+                bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 1, "line_x": 10, "line_y": 10, "show": true, "show_line": false})
+        data["_settings"]["tree"]["branch_annotations"] = bas
 
 # ----------------------------------------------------------------------
 
