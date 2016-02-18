@@ -105,9 +105,9 @@ def add_amino_acid_at(data, seqdb, pos):
                 if len(used) == 1:
                     used_in_subtree[no] = list(used)[0]
                 used_aa |= used
-            if used_in_subtree[0] is not None:
+            if used_in_subtree[0] not in [None, "X"]:
                 for no, e in enumerate(node["subtree"][1:], start=1):
-                    if e.get("subtree") and used_in_subtree[no] is not None and len(set(used_in_subtree[:no])) == 1 and used_in_subtree[no] != used_in_subtree[0]:
+                    if e.get("subtree") and used_in_subtree[no] not in [None, "X"] and len(set(used_in_subtree[:no])) == 1 and used_in_subtree[no] != used_in_subtree[0]:
                         names = set(e.get("name", "").split())
                         transition = "{}{}{}".format(used_in_subtree[0], pos, used_in_subtree[no])
                         names.add(transition)
@@ -123,7 +123,7 @@ def add_amino_acid_at(data, seqdb, pos):
         bas = data["_settings"]["tree"].get("branch_annotations", [])
         for tr in transitions:
             if not any(e for e in bas if e["_id"] == tr):
-                bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 1, "line_x": 10, "line_y": 10, "show": true, "show_line": false})
+                bas.append({"_id": tr, "color": "#000000", "font_size": 9, "label": "\n".join(tr.split()), "label_interleave": 1.2, "label_offset_x": 0, "label_offset_y": 0, "line_color": "#000000", "line_width": 1, "line_x": 10, "line_y": 10, "show": True, "show_line": False})
         data["_settings"]["tree"]["branch_annotations"] = bas
 
 # ----------------------------------------------------------------------
