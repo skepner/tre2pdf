@@ -22,12 +22,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-error Obsolete, use tre-seqdb
-
 """
 Reads json in the phylogenetic-tree-v1 format produced by newick2json,
 reads seqdb ("sequence-database-v1"),
-updates tree with clade for each leaf node.
+updates tree with clade and amino-acid information for each leaf node.
 """
 
 import sys, os, re, json, traceback
@@ -41,11 +39,10 @@ def main(args):
     try:
         data = load_tree(args.source[0])
         seqdb = load_seqdb(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-#        sequences = translate_to_amino_acid(decode_names(load_fasta(fasta_file)))
-#        subtype = detect_subtype(sequences)
-#        sequences = trim_initial_by_subtype(sequences, subtype)
-#        clade_desc = load_clade_desc(clade_desc_file, subtype)
-        add_clade(data["tree"], seqdb)
+        if args.add_clade_information:
+            add_clade(data["tree"], seqdb)
+        if args.pos is not None:
+            add_amino_acid_at(data["tree"], seqdb, args.pos)
         save_tree(args.result[0], data)
     except Exception as err:
         print('ERROR: cannot execute command:', err, traceback.format_exc())
@@ -60,19 +57,20 @@ def add_clade(data, seqdb):
 
     def add_clade_r(node):
         # global clades, nodes, clade_desc, sequences
-        if node.get("name"):
-            nodes["c"] += 1
-            if "clades" in node: del node["clades"]   # delete old data
-            seq = find_name_in_seqdb(seqdb, node["name"])
-            if seq:
-                if seq.get("clades"):
-                    node["clades"] = seq["clades"]
-                    for c in seq["clades"]:
-                        clades.setdefault(c, 0)
-                        clades[c] += 1
-            else:
-                pass # logging.warning("No sequence for {}".format(node["name"]))
-        if node.get("subtree"):
+        if not node.get("subtree"):
+            if node.get("name"):
+                nodes["c"] += 1
+                if "clades" in node: del node["clades"]   # delete old data
+                seq = find_name_in_seqdb(seqdb, node["name"])
+                if seq:
+                    if seq.get("clades"):
+                        node["clades"] = seq["clades"]
+                        for c in seq["clades"]:
+                            clades.setdefault(c, 0)
+                            clades[c] += 1
+                else:
+                    pass # logging.warning("No sequence for {}".format(node["name"]))
+        else:
             for e in node["subtree"]:
                 add_clade_r(e)
 
@@ -81,24 +79,52 @@ def add_clade(data, seqdb):
 
 # ----------------------------------------------------------------------
 
+def add_amino_acid_at(data, seqdb, pos):
+    aas = {}
+
+    def add_aa_r(node):
+        if not node.get("subtree"):
+            if node.get("name"):
+                if node.get("aa_at") and node["aa_at"].get(pos): del node["aa_at"][pos] # delete old data
+                seq = find_name_in_seqdb(seqdb, node["name"])
+                if seq and seq.get("aa") and seq.get("shift") is not None and len(seq["aa"]) >= (pos - seq["shift"]):
+                    aa = seq["aa"][pos - 1 - seq["shift"]]
+                    node.setdefault("aa_at", {})[pos] = aa
+                    if aa in aas:
+                        aas[aa] += 1
+                    else:
+                        aas[aa] = 1
+        else:
+            for e in node["subtree"]:
+                add_aa_r(e)
+
+    add_aa_r(data)
+    logging.info('AA: {}'.format(aas))
+
+# ----------------------------------------------------------------------
+
 def find_name_in_seqdb(seqdb, raw_name):
+
+    def find_passage(e1, passage):
+        for e2 in e1["data"]:
+            if (passage is not None and passage in e2["passages"]) or (passage is None and not e2["passages"]):
+                return e2
+        return None
+
     raw_name = raw_name.replace("/HUMAN/", "/")
+    # module_logger.info('find {}'.format(raw_name))
     seq = find_hi_name_in_seqdb(seqdb, raw_name)
     if seq is None:
         name, passage = split_name(raw_name)
-        if name is not None:
-            e1 = seqdb.get(name)
-            if e1:
-                for e2 in e1["data"]:
-                    if passage in e2["passages"]:
-                        seq = e2
-                        break
-                else:
-                    module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
-            else:
-                module_logger.warning('No {!r} in seqdb'.format(name))
+        e1 = seqdb.get(name)
+        if e1:
+            seq = find_passage(e1, passage)
+            if seq is None and " (" in passage:   # passage with date, look for passage wihtout date
+                seq = find_passage(e1, passage.split(" (")[0])
+            if seq is None:
+                module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
         else:
-            module_logger.warning('No {!r} in seqdb'.format(raw_name))
+            module_logger.warning('No {!r} in seqdb ({})'.format(name, raw_name))
     return seq
 
 # ----------------------------------------------------------------------
@@ -112,18 +138,17 @@ def find_hi_name_in_seqdb(seqdb, raw_name):
 
 # ----------------------------------------------------------------------
 
-sReYear = re.compile(r"^/(19[0-9][0-9]|20[0-2][0-9])$")
+sReNameParts = re.compile(r"^(?P<name>(?:B|A\(H\d+N\d+\))/[^/]+/[^/]+/(?:19\d\d|20[0-2]\d))\s+(?:(?P<infix>\([^\)]+\))\s+)?(?P<passage>.+)?$")
 
 def split_name(raw_name):
-    name = None
+    name = raw_name
     passage = None
-    if raw_name[:2] == "B/" or raw_name[:8] in ["A(H1N1)/", "A(H2N3)/"]:
-        fields = raw_name.split()
-        for name_parts in range(len(fields)):
-            if sReYear.match(fields[name_parts][-5:]):
-                name = " ".join(fields[:name_parts + 1])
-                passage = " ".join(fields[name_parts + 1:])
-                break
+    m = sReNameParts.match(raw_name)
+    if m:
+        name = m.group("name")
+        if m.group("infix"):
+            name += " " + m.group("infix")
+        passage = m.group("passage")
     return name, passage
 
 # ----------------------------------------------------------------------
@@ -146,7 +171,28 @@ def load_seqdb(filename):
 # ----------------------------------------------------------------------
 
 def save_tree(filename, data):
+    if filename != "-":
+        backup_file(filename)
     json.dump(data, sys.stdout if filename == "-" else open(filename, "w"), indent=2, separators=(',', ': '), sort_keys=True)
+
+# ----------------------------------------------------------------------
+
+def backup_file(filename, backup_dir=None):
+    """Backup the file, if it exists. Backups versioning is supported."""
+    if isinstance(backup_dir, str):
+        newname = os.path.join(backup_dir, os.path.basename(filename))
+    else:
+        newname = filename
+    version = 1
+    while os.access(newname, os.F_OK):
+        newname = '{}.~{:02d}~'.format(filename, version)
+        version += 1
+    if newname != filename:
+        #module_logger.debug("Backing up file: {} --> {}".format(filename, newname))
+        try:
+            os.rename(filename, newname)
+        except Exception as err:
+            module_logger.warning('Cannot create backup copy of {}: {}'.format(filename, err), exc_info=True)
 
 # ----------------------------------------------------------------------
 
@@ -155,6 +201,8 @@ try:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', nargs=1, help='source tree in the phylogenetic-tree-v1 format produced by newick2json.')
     parser.add_argument('result', nargs=1, help='resulting tree in the phylogenetic-tree-v1 format.')
+    parser.add_argument('--clade', action='store_true', dest='add_clade_information', default=False, help='Add clade information to nodes.')
+    parser.add_argument('--pos', action='store', dest='pos', type=int, default=None, help='Add amino-acid information at this position to each node.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()

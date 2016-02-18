@@ -15,11 +15,9 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
         ./scripts/tre-continent --acmacs=https://localhost:1168 <input.json> <output.json>
 
-* Add clade information
+* Add clade information (uses seqdb)
 
-    sequences.fasta is the data that was used to make initial tree in the newick format.
-
-        ./scripts/tre-clade <input.json> <sequences.fasta> <clade-desc.json> <output.json>
+        ./scripts/tre-seqdb --clade <input.json> output.json>
 
     Sample clade-desc.json:
 
@@ -40,6 +38,10 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
                 ]
             }
         }
+
+* Add amino acid at given pos information (uses seqdb)
+
+        ./scripts/tre-seqdb --pos <pos> <input.json> output.json>
 
 * Generate pdf.
 
