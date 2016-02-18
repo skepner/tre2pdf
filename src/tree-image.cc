@@ -307,7 +307,7 @@ void TreePart::show_branch_annotation(Surface& surface, std::string id, double b
         pos = end + 1;
     }
     if (ba.show_line) {
-        auto line_y = branch_y + ba.line_width * 2.0;
+        auto line_y = branch_y + ba.line_width * 1.0;
         surface.line({branch_center, line_y}, {branch_center + ba.line_x, line_y + ba.line_y}, ba.line_color, ba.line_width);
     }
 
