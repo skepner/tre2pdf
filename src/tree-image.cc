@@ -538,6 +538,7 @@ json TimeSeries::dump_to_json() const
 {
     json j = {
         {"_comment", "Time series settings, negative values mean default"},
+        {"show", mShow},
         {"begin", mBegin},
         {"end", mEnd},
         {"month_width", mMonthWidth},
@@ -564,6 +565,7 @@ json TimeSeries::dump_to_json() const
 
 void TimeSeries::load_from_json(const json& j)
 {
+    from_json(j, "show", mShow, true);
     from_json_if_not_empty(j, "begin", mBegin);
     from_json_if_not_empty(j, "end", mEnd);
     from_json(j, "month_width", mMonthWidth);
