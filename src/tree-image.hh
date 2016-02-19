@@ -323,7 +323,7 @@ class TreePart
         inline BranchAnnotation(const BranchAnnotation&) = default;
         inline BranchAnnotation(BranchAnnotation&&) = default;
         inline BranchAnnotation(std::string aId)
-            : show(true), id(aId), label(aId), color(0), font_size(9.0), label_offset_x(0.0), label_offset_y(0.0), label_interleave(1.2),
+            : show(true), id(aId), label(aId), color(0), font_size(-1.0), label_offset_x(0.0), label_offset_y(0.0), label_interleave(1.5),
               show_line(false), line_color(0), line_width(1.0), line_x(10.0), line_y(10.0) {}
 
         inline BranchAnnotation(const json& j)
@@ -332,7 +332,7 @@ class TreePart
                 from_json(j, "_id", id);
                 from_json(j, "label", label);
                 from_json(j, "color", color, Color(0));
-                from_json(j, "font_size", font_size, 9.0);
+                from_json(j, "font_size", font_size, -1.0);
                 from_json(j, "label_offset_x", label_offset_x, 0.0);
                 from_json(j, "label_offset_y", label_offset_y, 0.0);
                 from_json(j, "label_interleave", label_interleave, 1.2);
