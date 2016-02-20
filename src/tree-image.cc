@@ -9,11 +9,11 @@
 
 // ----------------------------------------------------------------------
 
-void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, const Size& aCanvasSize)
+void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, const Size& aCanvasSize)
 {
     setup(aFilename, aTre, aCanvasSize);
 
-    tree().draw(*this, aTre, aColoring);
+    tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold);
     if (time_series().show())
         time_series().draw(*this, aTre, aColoring);
     if (clades().show())
@@ -250,15 +250,15 @@ void TreePart::setup(TreeImage& aMain, const Tree& aTre)
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring)
+void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold)
 {
-    draw_node(aMain, aTre, origin().x, aColoring, mRootEdge);
+    draw_node(aMain, aTre, origin().x, aColoring, aNumberStrainsThreshold, mRootEdge);
 
 } // TreePart::draw
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, double aEdgeLength)
+void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, double aEdgeLength)
 {
     Surface& surface = aMain.surface();
     const double right = aLeft + (aEdgeLength < 0.0 ? aNode.edge_length : aEdgeLength) * mHorizontalStep;
@@ -274,12 +274,12 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
-        if (!aNode.name.empty()) {
+        if (!aNode.name.empty() && aNode.number_strains > aNumberStrainsThreshold) {
             show_branch_annotation(surface, aNode.name, aLeft, right, y);
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
-            draw_node(aMain, *node, right, aColoring);
+            draw_node(aMain, *node, right, aColoring, aNumberStrainsThreshold);
         }
     }
 

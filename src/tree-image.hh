@@ -285,7 +285,7 @@ class TreePart
     void setup(TreeImage& aMain, const Tree& aTre);
     void adjust_label_scale(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
     void adjust_horizontal_step(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
-    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring);
+    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold);
 
     json dump_to_json() const;
     void load_from_json(const json& j);
@@ -384,7 +384,7 @@ class TreePart
     BranchAnnotation mBranchAnnotationsAll;
       //std::vector<BranchAnnotation> mBranchAnnotations;
 
-    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, double aEdgeLength = -1.0);
+    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
       // const BranchAnnotation& find_branch_annotation(std::string id);
     void show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y);
@@ -434,7 +434,7 @@ class TreeImage
         {
         }
 
-    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring = nullptr, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
+    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring = nullptr, int aNumberStrainsThreshold = 0, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
 
     inline TimeSeries& time_series() { return mTimeSeries; }
     inline const TimeSeries& time_series() const { return mTimeSeries; }

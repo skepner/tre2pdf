@@ -177,6 +177,8 @@ void load_from_json(Node& aNode, const json& j)
             load_from_json(node, *e);
             aNode.subtree.push_back(std::forward<Node>(node));
         }
+        if (j.count("number_strains"))
+            aNode.number_strains = j["number_strains"];
     }
     else {
         if (j.count("date"))
@@ -210,6 +212,8 @@ json dump_to_json(const Node& aNode)
             subtree.push_back(dump_to_json(*node));
         }
         j["subtree"] = subtree;
+        if (aNode.number_strains >= 0)
+            j["number_strains"] = aNode.number_strains;
     }
     return j;
 }
