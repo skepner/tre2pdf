@@ -152,6 +152,10 @@ def add_branch_annotations(data):
             r = None
         return r
 
+    def exclude_if_parent(parent_names, pos, transition):
+        pn = parent_names.get(pos)
+        return pn is not None and pn[1] == transition[1]   # just the "to" in transition matters
+
     def ba_r(node, parents=[], parent_names={}):
         if node.get("subtree"):
             if node.get("name"): del node["name"]
@@ -164,16 +168,18 @@ def add_branch_annotations(data):
                             chosen_node = use_node(pos, parents[- p_no - 1], parents[- p_no], offset)
                             if chosen_node is not None:
                                 chosen_node_aa = chosen_node["aa_at"].get(pos) # can be absent if "X"
-                                if chosen_node_aa is not None and chosen_node_aa != aa:
+                                if chosen_node_aa is not None: # note that may lead to say "KK", those will be eliminated when name is built below, having "KK" is necessary to incorrect names (incorrect from part) in the child branches
                                     names[pos] = chosen_node_aa + aa
                                 break
                             offset += parents[- p_no]["edge_length"]
                         # else:
                         #     names.append("?{}{}".format(pos, aa))
-                names = {p: s for p, s in names.items() if parent_names.get(p) != s}                # exclude names already shown in parents
+                names = {p: s for p, s in names.items() if not exclude_if_parent(parent_names, p, s)}                # exclude names already shown in parents
                 if names:
-                    node["name"] = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names))
-                    annotations.append(node["name"])
+                    name = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names) if names[p][0] != names[p][1])
+                    if name:
+                        node["name"] = name
+                        annotations.append(name)
             names_for_subtree = {}
             names_for_subtree.update(parent_names)
             names_for_subtree.update(names)
