@@ -82,7 +82,7 @@ def add_clade(data, seqdb):
 
 # ----------------------------------------------------------------------
 
-def add_amino_acid_at(data, seqdb, poss):
+def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
     pp = {p: int(p) for p in poss.split(",")}
 
     def del_old(node):
@@ -102,7 +102,7 @@ def add_amino_acid_at(data, seqdb, poss):
 
     def add_aa_r(node):
         del_old(node)
-        aa_at = node.setdefault("aa_at", {})
+        aa_at = node["aa_at"] = {}        # reset
         if not node.get("subtree"):
             rn = 1
             if node.get("name"):
@@ -112,7 +112,9 @@ def add_amino_acid_at(data, seqdb, poss):
                     for s, p in pp.items():
                         pos = p - seq["shift"] - 1
                         if pos > 0 and pos < ls:
-                            aa_at[s] = seq["aa"][pos]   # note dict key must be str to be properly saveable and loadable into/from json
+                            aa = seq["aa"][pos]
+                            if not ignore_X or aa != "X":
+                                aa_at[s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
         else:
             rn = 0
             for subtree in node["subtree"]:
@@ -161,8 +163,9 @@ def add_branch_annotations(data):
                         for p_no in range(1, len(parents)):
                             chosen_node = use_node(pos, parents[- p_no - 1], parents[- p_no], offset)
                             if chosen_node is not None:
-                                if chosen_node["aa_at"][pos] != aa:
-                                    names[pos] = chosen_node["aa_at"][pos] + aa
+                                chosen_node_aa = chosen_node["aa_at"].get(pos) # can be absent if "X"
+                                if chosen_node_aa is not None and chosen_node_aa != aa:
+                                    names[pos] = chosen_node_aa + aa
                                 break
                             offset += parents[- p_no]["edge_length"]
                         # else:

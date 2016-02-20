@@ -41,7 +41,11 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
 * Add amino acid at given pos information (uses seqdb)
 
-        ./scripts/tre-seqdb --pos <pos> <input.json> output.json>
+        ./scripts/tre-seqdb --pos <pos,pos,pos> <input.json> output.json>
+
+* Add branch annotations for amino acid transition
+
+        ./scripts/tre-seqdb --branch-annotations <input.json> output.json>
 
 * Generate pdf.
 
