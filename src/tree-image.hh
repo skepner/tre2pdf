@@ -291,18 +291,6 @@ class TreePart
     void load_from_json(const json& j);
 
  private:
-    double mHorizontalStep;
-    double mLineWidth;          // width of the drawn tree line
-    double mLabelScale;
-    Color mLineColor;
-    double mNameOffset;
-    double mRootEdge;
-
-    double mWidth;
-    size_t mNumberOfLines;
-    double mVerticalStep;       // vertical step between name nodes
-    Location mOrigin;
-
     struct BranchAnnotation
     {
         bool show;
@@ -319,28 +307,24 @@ class TreePart
         double line_x;
         double line_y;
 
-        inline BranchAnnotation() = default;
-        inline BranchAnnotation(const BranchAnnotation&) = default;
-        inline BranchAnnotation(BranchAnnotation&&) = default;
-        inline BranchAnnotation(std::string aId)
-            : show(true), id(aId), label(aId), color(0), font_size(-1.0), label_offset_x(0.0), label_offset_y(0.0), label_interleave(1.5),
-              show_line(false), line_color(0), line_width(1.0), line_x(10.0), line_y(10.0) {}
+        inline BranchAnnotation(std::string aId = "") : id(aId) { defaults(); }
 
         inline BranchAnnotation(const json& j)
             {
-                from_json(j, "show", show, true);
+                defaults();
+                from_json(j, "show", show);
                 from_json(j, "_id", id);
                 from_json(j, "label", label);
-                from_json(j, "color", color, Color(0));
-                from_json(j, "font_size", font_size, -1.0);
-                from_json(j, "label_offset_x", label_offset_x, 0.0);
-                from_json(j, "label_offset_y", label_offset_y, 0.0);
-                from_json(j, "label_interleave", label_interleave, 1.2);
-                from_json(j, "show_line", show_line, false);
-                from_json(j, "line_color", line_color, Color(0));
-                from_json(j, "line_width", line_width, 1.0);
-                from_json(j, "line_x", line_x, 10.0);
-                from_json(j, "line_y", line_y, 10.0);
+                from_json(j, "color", color);
+                from_json(j, "font_size", font_size);
+                from_json(j, "label_offset_x", label_offset_x);
+                from_json(j, "label_offset_y", label_offset_y);
+                from_json(j, "label_interleave", label_interleave);
+                from_json(j, "show_line", show_line);
+                from_json(j, "line_color", line_color);
+                from_json(j, "line_width", line_width);
+                from_json(j, "line_x", line_x);
+                from_json(j, "line_y", line_y);
             }
 
         inline operator json() const
@@ -361,13 +345,48 @@ class TreePart
                     {"line_y", line_y}
                 };
             }
+
+        inline json make_json_for_branch_annotations_all() const
+            {
+                json j = *this;
+                j.erase("_id");
+                j.erase("label");
+                return j;
+            }
+
+        inline void defaults()
+            {
+                show = true;
+                color = Color(0);
+                font_size = -1.0;
+                label_offset_x = 0.0;
+                label_offset_y = 0.0;
+                label_interleave = 1.5;
+                show_line = false;
+                line_color = Color(0);
+                line_width = 1.0;
+                line_x = -10.0;
+                line_y = 5.0;
+            }
     };
 
-    std::vector<BranchAnnotation> mBranchAnnotations;
+    double mHorizontalStep;
+    double mLineWidth;          // width of the drawn tree line
+    double mLabelScale;
+    Color mLineColor;
+    double mNameOffset;
+    double mRootEdge;
+
+    double mWidth;
+    size_t mNumberOfLines;
+    double mVerticalStep;       // vertical step between name nodes
+    Location mOrigin;
+    BranchAnnotation mBranchAnnotationsAll;
+      //std::vector<BranchAnnotation> mBranchAnnotations;
 
     void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
-    const BranchAnnotation& find_branch_annotation(std::string id);
+      // const BranchAnnotation& find_branch_annotation(std::string id);
     void show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y);
 
 }; // class TreePart

@@ -183,7 +183,21 @@ def add_branch_annotations(data):
 # ----------------------------------------------------------------------
 
 def update_branch_annotation_settings(data):
-    pass
+    branch_annotations_all = {
+        "show": True,
+        "color": "#000000",
+        "font_size_comment": "Negative value means use this factor (abs value) for the strain label font size",
+        "font_size": -1,
+        "label_offset_x": 0.0,
+        "label_offset_y": 0.0,
+        "label_interleave": 1.2,
+        "show_line": False,
+        "line_color": "#000000",
+        "line_width": 0.5,
+        "line_x": -10.0,
+        "line_y": 5.0
+        }
+    data["_settings"]["tree"].setdefault("branch_annotations_all", branch_annotations_all)
 
     # def transitions_r(node):
     #     transitions = set()
