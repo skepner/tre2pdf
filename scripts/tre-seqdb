@@ -28,7 +28,7 @@ reads seqdb ("sequence-database-v1"),
 updates tree with clade and amino-acid information for each leaf node.
 """
 
-import sys, os, re, json, traceback, collections
+import sys, os, re, json, traceback, collections, pprint
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 import logging; module_logger = logging.getLogger(__name__)
 
@@ -146,7 +146,6 @@ def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
 
 def add_branch_annotations(data):
 
-    annotations = []
 
     def edge_r(node, offset):
         this_edge_length = node["edge_length"]
@@ -172,7 +171,25 @@ def add_branch_annotations(data):
         pn = parent_names.get(pos)
         return pn is not None and pn[1] == transition[1]   # just the "to" in transition matters
 
+    def copy_extend(d1, d2):
+        r = {}
+        r.update(d1)
+        r.update(d2)
+        return r
+
+    def decode_tr_name(names):
+        return ((e[1:-1], e[0] + e[-1]) for e in (names or "").split())
+
+    class NameEmpty (Exception): pass
+
+    def encode_tr_name(names):
+        r = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names) if names[p][0] != names[p][1])
+        if not r:
+            raise NameEmpty()
+        return r
+
     def ba_r(node, parents=[], parent_names={}):
+        nonlocal annotations
         if node.get("subtree"):
             if node.get("name"): del node["name"]
             names = {}                    # pos to subst
@@ -192,19 +209,80 @@ def add_branch_annotations(data):
                         # else:
                         #     names.append("?{}{}".format(pos, aa))
                 names = {p: s for p, s in names.items() if not exclude_if_parent(parent_names, p, s)}                # exclude names already shown in parents
-                if names:
-                    name = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names) if names[p][0] != names[p][1])
-                    if name:
-                        node["name"] = name
-                        annotations.append(name)
-            names_for_subtree = {}
-            names_for_subtree.update(parent_names)
-            names_for_subtree.update(names)
+                try:
+                    node["name"] = encode_tr_name(names)
+                    annotations[node["name"]] += 1
+                except NameEmpty:
+                    pass
+            names_for_subtree = copy_extend(parent_names, names)
             for subtree in node["subtree"]:
                 ba_r(subtree, parents=parents + [node], parent_names=names_for_subtree)
 
+    # If multiple immediate child nodes have the same branch annotations, that
+    # annotation is added to their parent, redundant child annotations removed,
+    # child annotations for the same position but other transition updated
+    # (actually updated their left side to match right side of the annotation
+    # added to parent.)
+    def ba_compact_r(node, parent_names={}):
+        updated = 0
+
+        def add_to_parent(names):
+            subnames = {}
+            for subtree in node["subtree"]:
+                if subtree.get("subtree"):
+                    for pos, tr in decode_tr_name(subtree.get("name")):
+                        subnames.setdefault(pos, collections.defaultdict(int))[tr] += 1
+            for pos, v in subnames.items():
+                vs = sorted(v.items(), key=lambda e: e[1], reverse=True)
+                if vs[0][1] > 1 and vs[0][0] not in names:
+                    names[pos] = vs[0][0]
+
+        def update_name(names):
+            nonlocal updated_annotations, updated
+            try:
+                new_name = encode_tr_name(names)
+                if new_name != node.get("name"):
+                    node["name"] = new_name
+                    updated_annotations[new_name] += 1
+                    updated += 1
+            except NameEmpty:
+                if "name" in node:
+                    del node["name"]
+                    updated_annotations[""] += 1
+                    updated += 1
+
+        def update_child(names):
+            if parent_names and names:
+                for pos in names:
+                    ptr = parent_names.get(pos)
+                    if ptr:
+                        names[pos] = ptr[1] + names[pos][1]
+            return names
+
+        if node.get("subtree"):
+            names = dict(decode_tr_name(node.get("name")))
+            update_child(names)
+            add_to_parent(names)
+            update_name(names)
+            names_for_subtree = copy_extend(parent_names, names)
+            for subtree in node["subtree"]:
+                updated += ba_compact_r(subtree, parent_names=names_for_subtree)
+        return updated
+
+    annotations = collections.defaultdict(int)
+    # first pass
     ba_r(data)
-    module_logger.info('Annotations\n{}'.format("\n".join(annotations)))
+    module_logger.info('Annotations\n{}'.format(pprint.pformat(dict(annotations), width=1)))
+
+    pass_no  = 1
+    while True:
+        # second pass: reduce number of labels by moving labels from multiple children to their parent
+        updated_annotations = collections.defaultdict(int)
+        if not ba_compact_r(data):        # repeat until there are no updates
+            break
+        if updated_annotations:
+            module_logger.info('Updated annotations (pass: {})\n{}'.format(pass_no, pprint.pformat(dict(updated_annotations), width=1)))
+        pass_no += 1
 
 # ----------------------------------------------------------------------
 
