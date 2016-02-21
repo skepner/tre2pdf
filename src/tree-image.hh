@@ -285,7 +285,7 @@ class TreePart
     void setup(TreeImage& aMain, const Tree& aTre);
     void adjust_label_scale(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
     void adjust_horizontal_step(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
-    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold);
+    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds);
 
     json dump_to_json() const;
     void load_from_json(const json& j);
@@ -306,6 +306,10 @@ class TreePart
         double line_width;
         double line_x;
         double line_y;
+        Color branch_id_color;
+        double branch_id_font_size;
+        double branch_id_offset_x;
+        double branch_id_offset_y;
 
         inline BranchAnnotation(std::string aId = "") : id(aId) { defaults(); }
 
@@ -325,6 +329,10 @@ class TreePart
                 from_json(j, "line_width", line_width);
                 from_json(j, "line_x", line_x);
                 from_json(j, "line_y", line_y);
+                from_json(j, "branch_id_color", branch_id_color);
+                from_json(j, "branch_id_font_size", branch_id_font_size);
+                from_json(j, "branch_id_offset_x", branch_id_offset_x);
+                from_json(j, "branch_id_offset_y", branch_id_offset_y);
             }
 
         inline operator json() const
@@ -342,7 +350,11 @@ class TreePart
                     {"line_color", line_color},
                     {"line_width", line_width},
                     {"line_x", line_x},
-                    {"line_y", line_y}
+                    {"line_y", line_y},
+                    {"branch_id_color", branch_id_color},
+                    {"branch_id_font_size", branch_id_font_size},
+                    {"branch_id_offset_x", branch_id_offset_x},
+                    {"branch_id_offset_y", branch_id_offset_y}
                 };
             }
 
@@ -367,6 +379,10 @@ class TreePart
                 line_width = 1.0;
                 line_x = -10.0;
                 line_y = 5.0;
+                branch_id_color = Color(0xFFA000);
+                branch_id_font_size = -1.0;
+                branch_id_offset_x = 0.5;
+                branch_id_offset_y = -0.25;
             }
     };
 
@@ -384,10 +400,11 @@ class TreePart
     BranchAnnotation mBranchAnnotationsAll;
       //std::vector<BranchAnnotation> mBranchAnnotations;
 
-    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, double aEdgeLength = -1.0);
+    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
       // const BranchAnnotation& find_branch_annotation(std::string id);
     void show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y);
+    void show_branch_id(Surface& surface, std::string id, double branch_left, double branch_y);
 
 }; // class TreePart
 
@@ -434,7 +451,7 @@ class TreeImage
         {
         }
 
-    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring = nullptr, int aNumberStrainsThreshold = 0, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
+    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
 
     inline TimeSeries& time_series() { return mTimeSeries; }
     inline const TimeSeries& time_series() const { return mTimeSeries; }

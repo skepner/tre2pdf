@@ -46,6 +46,8 @@ def main(args):
         if args.branch_annotations:
             add_branch_annotations(data["tree"])
             update_branch_annotation_settings(data)
+        if args.branch_ids:
+            add_branch_ids(data["tree"])
         save_tree(args.result[0], data)
     except Exception as err:
         print('ERROR: cannot execute command:', err, traceback.format_exc())
@@ -319,6 +321,33 @@ def update_branch_annotation_settings(data):
 
 # ----------------------------------------------------------------------
 
+def add_branch_ids(data):
+
+    def path_simple(path, no):
+        if not path or len(path[-1]) == 1:
+            r = str(no)
+        else:
+            r = ".{}".format(no)
+        return path + [r]
+
+    def path_many(path, no):
+        if not path:
+            r = str(no)
+        else:
+            r = ".{}".format(no)
+        return path + [r]
+
+    def add_id_r(node, path=[]):
+        if node.get("subtree"):
+            node["id"] = "".join(path)
+            path_gen = path_simple if len(node["subtree"]) <= 10 else path_many
+            for no, subtree in enumerate(node["subtree"]):
+                add_id_r(subtree, path_gen(path, no))
+
+    add_id_r(data)
+
+# ----------------------------------------------------------------------
+
 def find_name_in_seqdb(seqdb, raw_name):
 
     def find_passage(e1, passage):
@@ -458,6 +487,7 @@ try:
     parser.add_argument('--clade', action='store_true', dest='add_clade_information', default=False, help='Add clade information to nodes.')
     parser.add_argument('--pos', action='store', dest='pos', default=None, help='Comma separated list of positions or "all". Add amino-acid information at this position to each node.')
     parser.add_argument('--branch-annotations', action='store_true', dest='branch_annotations', default=False, help='Add branch annotations.')
+    parser.add_argument('--branch-ids', action='store_true', dest='branch_ids', default=False, help='Add branch ids.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()

@@ -179,6 +179,8 @@ void load_from_json(Node& aNode, const json& j)
         }
         if (j.count("number_strains"))
             aNode.number_strains = j["number_strains"];
+        if (j.count("id"))
+            aNode.branch_id = j["id"];
     }
     else {
         if (j.count("date"))
@@ -214,6 +216,8 @@ json dump_to_json(const Node& aNode)
         j["subtree"] = subtree;
         if (aNode.number_strains >= 0)
             j["number_strains"] = aNode.number_strains;
+        if (!aNode.branch_id.empty())
+            j["id"] = aNode.branch_id;
     }
     return j;
 }

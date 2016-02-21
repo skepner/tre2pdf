@@ -9,11 +9,11 @@
 
 // ----------------------------------------------------------------------
 
-void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, const Size& aCanvasSize)
+void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, const Size& aCanvasSize)
 {
     setup(aFilename, aTre, aCanvasSize);
 
-    tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold);
+    tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold, aShowBranchIds);
     if (time_series().show())
         time_series().draw(*this, aTre, aColoring);
     if (clades().show())
@@ -250,15 +250,15 @@ void TreePart::setup(TreeImage& aMain, const Tree& aTre)
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold)
+void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds)
 {
-    draw_node(aMain, aTre, origin().x, aColoring, aNumberStrainsThreshold, mRootEdge);
+    draw_node(aMain, aTre, origin().x, aColoring, aNumberStrainsThreshold, aShowBranchIds, mRootEdge);
 
 } // TreePart::draw
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, double aEdgeLength)
+void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength)
 {
     Surface& surface = aMain.surface();
     const double right = aLeft + (aEdgeLength < 0.0 ? aNode.edge_length : aEdgeLength) * mHorizontalStep;
@@ -274,12 +274,16 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
+        if (/*aShowBranchIds &&*/ !aNode.branch_id.empty()) {
+            std::cerr << "BID " << aNode.branch_id << std::endl;
+            show_branch_id(surface, aNode.branch_id, aLeft, y);
+        }
         if (!aNode.name.empty() && aNode.number_strains > aNumberStrainsThreshold) {
             show_branch_annotation(surface, aNode.name, aLeft, right, y);
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
-            draw_node(aMain, *node, right, aColoring, aNumberStrainsThreshold);
+            draw_node(aMain, *node, right, aColoring, aNumberStrainsThreshold, aShowBranchIds);
         }
     }
 
@@ -318,6 +322,16 @@ void TreePart::show_branch_annotation(Surface& surface, std::string id, double b
     }
 
 } // TreePart::show_branch_annotation
+
+// ----------------------------------------------------------------------
+
+void TreePart::show_branch_id(Surface& surface, std::string id, double branch_left, double branch_y)
+{
+    auto const ba = mBranchAnnotationsAll;
+    auto font_size = ba.branch_id_font_size > 0 ? ba.branch_id_font_size : mVerticalStep * mLabelScale * (-ba.branch_id_font_size);
+    surface.text({branch_left + ba.branch_id_offset_x, branch_y + ba.branch_id_offset_y}, id, ba.branch_id_color, font_size);
+
+} // TreePart::show_branch_id
 
 // ----------------------------------------------------------------------
 
