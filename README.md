@@ -45,11 +45,11 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
 * Add branch annotations for amino acid transition
 
-        ./scripts/tre-seqdb --branch-annotations <input.json> output.json>
+        ./scripts/tre-seqdb --branch-annotations --branch-ids <input.json> output.json>
 
 * Generate pdf.
 
-        ./dist/tre2pdf --continents --clades --fix-labels <input.json> <output.pdf>
+        ./dist/tre2pdf --continents --clades --fix-labels --number-strains-threshold=20 --show-branch-ids <input.json> <output.pdf>
 
 * Do everything using pipe.
 
