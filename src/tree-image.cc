@@ -274,8 +274,7 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
-        if (/*aShowBranchIds &&*/ !aNode.branch_id.empty()) {
-            std::cerr << "BID " << aNode.branch_id << std::endl;
+        if (aShowBranchIds && !aNode.branch_id.empty()) {
             show_branch_id(surface, aNode.branch_id, aLeft, y);
         }
         if (!aNode.name.empty() && aNode.number_strains > aNumberStrainsThreshold) {
