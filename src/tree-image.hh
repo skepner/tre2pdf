@@ -134,6 +134,8 @@ class TimeSeries
         std::string branch_id;
         Color line_color;
         double line_width;
+        bool draw_top;
+        bool draw_bottom;
 
         inline SubtreeTopBottom() = default;
 
@@ -143,6 +145,8 @@ class TimeSeries
                 from_json(j, "branch_id", branch_id);
                 from_json(j, "line_color", line_color, Color(0x808080));
                 from_json(j, "line_width", line_width, 1.0);
+                from_json(j, "draw_top", draw_top, true);
+                from_json(j, "draw_bottom", draw_bottom, true);
             }
 
         inline operator json() const
@@ -152,6 +156,8 @@ class TimeSeries
                     {"show", show},
                     {"line_color", line_color},
                     {"line_width", line_width},
+                    {"draw_top", draw_top},
+                    {"draw_bottom", draw_bottom},
                 };
             }
     };

@@ -555,9 +555,9 @@ void TimeSeries::draw_subtree_top_bottom(TreeImage& aMain, const Tree& aTre)
     for (auto entry = mSubtreeTopBottom.cbegin(); entry != mSubtreeTopBottom.end(); ++entry) {
         if (entry->show) {
             auto const nodes = aTre.top_bottom_nodes_of_subtree(entry->branch_id);
-            if (nodes.first != nullptr)
+            if (nodes.first != nullptr && entry->draw_top)
                 surface.line({origin().x, base_y + vertical_step * nodes.first->line_no - vertical_step * 0.5}, {origin().x + width(), base_y + vertical_step * nodes.first->line_no - vertical_step * 0.5}, entry->line_color, entry->line_width);
-            if (nodes.second != nullptr)
+            if (nodes.second != nullptr && entry->draw_bottom)
                 surface.line({origin().x, base_y + vertical_step * nodes.second->line_no + vertical_step * 0.5}, {origin().x + width(), base_y + vertical_step * nodes.second->line_no + vertical_step * 0.5}, entry->line_color, entry->line_width);
         }
     }
