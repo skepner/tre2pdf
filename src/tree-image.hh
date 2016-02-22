@@ -509,6 +509,40 @@ class TreeImage
     void load_from_json(const json& j);
 
  private:
+    struct Title
+    {
+        bool show;
+        std::string label;
+        Color label_color;
+        double font_size;
+        double label_x;
+        double label_y;
+
+        inline Title() = default;
+
+        inline void load_from_json(const json& j)
+            {
+                from_json(j, "show", show, true);
+                from_json(j, "label", label);
+                from_json(j, "label_color", label_color, Color(0));
+                from_json(j, "font_size", font_size, 20.0);
+                from_json(j, "label_x", label_x, 10.0);
+                from_json(j, "label_y", label_y, 10.0);
+            }
+
+        inline operator json() const
+            {
+                return json {
+                    {"show", show},
+                    {"label", label},
+                    {"label_color", label_color},
+                    {"font_size", font_size},
+                    {"label_x", label_x},
+                    {"label_y", label_y},
+                };
+            }
+    };
+
     double mBorder;             // around all parts, relative to the canvas size
 
     Viewport mViewport;
@@ -519,8 +553,10 @@ class TreeImage
     TreePart mTree;
     TimeSeries mTimeSeries;
     Clades mClades;
+    Title mTitle;
 
     void setup(std::string aFilename, const Tree& aTre, const Size& aCanvasSize);
+    void draw_title();
 };
 
 // ----------------------------------------------------------------------

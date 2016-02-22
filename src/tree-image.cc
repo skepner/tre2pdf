@@ -13,6 +13,7 @@ void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColo
 {
     setup(aFilename, aTre, aCanvasSize);
 
+    draw_title();
     tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold, aShowBranchIds);
     if (time_series().show())
         time_series().draw(*this, aTre, aColoring, aShowSubtreesTopBottom);
@@ -85,6 +86,16 @@ void TreeImage::setup(std::string aFilename, const Tree& aTre, const Size& aCanv
 
 // ----------------------------------------------------------------------
 
+void TreeImage::draw_title()
+{
+    if (mTitle.show and !mTitle.label.empty()) {
+        surface().text({mTitle.label_x, mTitle.label_y}, mTitle.label, mTitle.label_color, mTitle.font_size);
+    }
+
+} // TreeImage::draw_title
+
+// ----------------------------------------------------------------------
+
 Color TreeImage::coloring_by_continent(const Node& aNone)
 {
     return colors().continent(aNone.continent);
@@ -108,6 +119,8 @@ json TreeImage::dump_to_json() const
 
 void TreeImage::load_from_json(const json& j)
 {
+    if (j.count("title"))
+        mTitle.load_from_json(j["title"]);
     if (j.count("tree"))
         tree().load_from_json(j["tree"]);
     if (j.count("time_series"))
