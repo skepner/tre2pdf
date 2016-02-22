@@ -49,7 +49,7 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
 * Generate pdf.
 
-        ./dist/tre2pdf --continents --clades --fix-labels --number-strains-threshold=20 --show-branch-ids <input.json> <output.pdf>
+        ./dist/tre2pdf --continents --clades --fix-labels --number-strains-threshold=20 --show-branch-ids --show-subtree-top-bottom <input.json> <output.pdf>
 
 * Do everything using pipe.
 
@@ -62,3 +62,38 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
     tre-clade. You may edit various settings, some of them could be
     set ot negative numbers, then program uses defaults or
     re-calculates those values.
+
+* Title
+
+        _settings.title: {"label": "B/Yam", "font_size": 20, "label_x": 10, "label_y": 25, "label_color": "#000000"}
+
+* Horizontal lines in time series
+
+        _settings.time_series.subtree_top_bottom:
+        [
+          {"branch_id": "1.13.2.1.1.1.2.104.18", "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1.2.104.19.12", "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1", "draw_bottom": false, "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1.2.100", "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1.2.104", "draw_bottom": false, "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1.2.104.15", "draw_bottom": false, "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "1.13.2.1.1.1.2.104.17", "draw_bottom": false, "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "", "line_color": "#808080", "line_width": 0.2, "show": true},
+          {"branch_id": "", "line_color": "#808080", "line_width": 0.2, "show": true}
+          ]
+
+* Branch annotations
+
+        _settings.tree.branch_annotations:
+        [
+          {"branch_id": "1.13.2", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.11.1", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1", "label": "N166Y\nK299E", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1", "label": "N116K\nA182T\nN203S", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.0", "label": "K88R\nM252V\nE313K", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.1", "label": "K122Q\nR212K", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.1.2", "label": "L173Q\nM252I", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.1.2.104", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.1.2.104.17.2", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false},
+          {"branch_id": "1.13.2.1.1.1.2.104.19.13.23", "color": "#000000", "font_size": 10, "label_interleave": 1.2, "label_offset_x": 0.0, "label_offset_y": 0.0, "line_color": "#000000", "line_width": 0.5, "line_x": -10.0, "line_y": 5.0, "show": true, "show_line": false}
+       ]
