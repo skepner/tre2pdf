@@ -187,7 +187,7 @@ def add_branch_annotations(data):
     class NameEmpty (Exception): pass
 
     def encode_tr_name(names):
-        r = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names) if names[p][0] != names[p][1])
+        r = " ".join("{}{}{}".format(names[p][0], p, names[p][1]) for p in sorted(names, key=lambda pos: int(pos)) if names[p][0] != names[p][1])
         if not r:
             raise NameEmpty()
         return r
