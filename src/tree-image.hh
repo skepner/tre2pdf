@@ -294,7 +294,7 @@ class TreePart
     struct BranchAnnotation
     {
         bool show;
-        std::string id;
+        std::string id;         // branch id
         std::string label;
         Color color;
         double font_size;
@@ -317,7 +317,7 @@ class TreePart
             {
                 defaults();
                 from_json(j, "show", show);
-                from_json(j, "_id", id);
+                from_json(j, "branch_id", id);
                 from_json(j, "label", label);
                 from_json(j, "color", color);
                 from_json(j, "font_size", font_size);
@@ -338,7 +338,7 @@ class TreePart
         inline operator json() const
             {
                 return json {
-                    {"_id", id},
+                    {"branch_id", id},
                     {"show", show},
                     {"label", label},
                     {"color", color},
@@ -398,12 +398,12 @@ class TreePart
     double mVerticalStep;       // vertical step between name nodes
     Location mOrigin;
     BranchAnnotation mBranchAnnotationsAll;
-      //std::vector<BranchAnnotation> mBranchAnnotations;
+    std::vector<BranchAnnotation> mBranchAnnotations; // for some branch ids
 
     void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
-      // const BranchAnnotation& find_branch_annotation(std::string id);
-    void show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y);
+    const BranchAnnotation& find_branch_annotation(std::string branch_id) const;
+    void show_branch_annotation(Surface& surface, std::string branch_id, std::string branch_annotation, double branch_left, double branch_right, double branch_y);
     void show_branch_id(Surface& surface, std::string id, double branch_left, double branch_y);
 
 }; // class TreePart

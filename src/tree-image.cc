@@ -278,7 +278,7 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
             show_branch_id(surface, aNode.branch_id, aLeft, y);
         }
         if (!aNode.name.empty() && aNode.number_strains > aNumberStrainsThreshold) {
-            show_branch_annotation(surface, aNode.name, aLeft, right, y);
+            show_branch_annotation(surface, aNode.branch_id, aNode.name, aLeft, right, y);
         }
         surface.line({right, mOrigin.y + mVerticalStep * aNode.top}, {right, mOrigin.y + mVerticalStep * aNode.bottom}, mLineColor, mLineWidth);
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
@@ -290,11 +290,11 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
 
 // ----------------------------------------------------------------------
 
-void TreePart::show_branch_annotation(Surface& surface, std::string id, double branch_left, double branch_right, double branch_y)
+void TreePart::show_branch_annotation(Surface& surface, std::string branch_id, std::string branch_annotation, double branch_left, double branch_right, double branch_y)
 {
-    auto const ba = mBranchAnnotationsAll; // find_branch_annotation(id);
+    auto const ba = find_branch_annotation(branch_id); // mBranchAnnotationsAll; //
     if (ba.show) {
-        auto const label = ba.label.empty() ? id : ba.label;
+        auto const label = ba.label.empty() ? branch_annotation : ba.label;
         auto const branch_center = (branch_right + branch_left) / 2.0;
         auto text_y = branch_y;
         std::string::size_type pos = 0;
@@ -389,20 +389,12 @@ double TreePart::tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLen
 
 // ----------------------------------------------------------------------
 
-// const TreePart::BranchAnnotation& TreePart::find_branch_annotation(std::string id)
-// {
-//     auto i = std::find_if(mBranchAnnotations.cbegin(), mBranchAnnotations.cend(), [&id](const auto& ba) { return ba.id == id; });
-//     const BranchAnnotation* ba = nullptr;
-//     if (i == mBranchAnnotations.cend()) {
-//         mBranchAnnotations.push_back(id);
-//         ba = &mBranchAnnotations.back();
-//     }
-//     else {
-//         ba = &*i;
-//     }
-//     return *ba;
+const TreePart::BranchAnnotation& TreePart::find_branch_annotation(std::string branch_id) const
+{
+    auto i = std::find_if(mBranchAnnotations.cbegin(), mBranchAnnotations.cend(), [&branch_id](const auto& ba) { return ba.id == branch_id; });
+    return i == mBranchAnnotations.cend() ? mBranchAnnotationsAll : *i;
 
-// } // TreePart::find_branch_annotation
+} // TreePart::find_branch_annotation
 
 // ----------------------------------------------------------------------
 
@@ -426,6 +418,7 @@ json TreePart::dump_to_json() const
         {"vertical_step", mVerticalStep},
         {"vertical_step_comment", "vertical_step is for information only"},
         {"branch_annotations_all", mBranchAnnotationsAll.make_json_for_branch_annotations_all()},
+        {"branch_annotations", mBranchAnnotations},
     };
 
     return j;
@@ -445,12 +438,12 @@ void TreePart::load_from_json(const json& j)
     from_json_if_non_negative(j, "origin_x", mOrigin.x);
     from_json(j, "branch_annotations_all", mBranchAnnotationsAll);
 
-    // mBranchAnnotations.clear();
-    // if (j.count("branch_annotations")) {
-    //     for (auto i = j["branch_annotations"].begin(); i != j["branch_annotations"].end(); ++i) {
-    //         mBranchAnnotations.push_back(*i);
-    //     }
-    // }
+    mBranchAnnotations.clear();
+    if (j.count("branch_annotations")) {
+        for (auto i = j["branch_annotations"].begin(); i != j["branch_annotations"].end(); ++i) {
+            mBranchAnnotations.push_back(*i);
+        }
+    }
 
 } // TreePart::load_from_json
 
