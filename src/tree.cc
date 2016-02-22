@@ -95,6 +95,15 @@ std::pair<double, double> Tree::min_max_edge() const
 
 // ----------------------------------------------------------------------
 
+std::pair<const Node*, const Node*> Tree::top_bottom_nodes_of_subtree(std::string branch_id) const
+{
+    const Node* root = find_node(*this, [branch_id](const Node& aNode) -> bool { return aNode.branch_id == branch_id; });
+    return std::make_pair(root != nullptr ? &find_first_leaf(*root) : nullptr, root != nullptr ? &find_last_leaf(*root) : nullptr);
+
+} // Tree::top_bottom_nodes_of_subtree
+
+// ----------------------------------------------------------------------
+
 void Tree::print(std::ostream& out) const
 {
     size_t indent = 0;

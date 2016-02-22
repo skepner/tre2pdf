@@ -20,6 +20,7 @@ int main(int argc, const char *argv[])
                 Arg<bool>("clades", false, Help("show clades")),
                 Arg<bool>("edges", false, Help("print edges")),
                 Arg<bool>("show-branch-ids", false, Help("show branch ids")),
+                Arg<bool>("show-subtree-top-bottom", false, Help("show subtree top bottom (see _settings.time_series.subtree_top_bottom in json)")),
                 Arg<bool>("fix-labels", false, Help("Remove /HUMAN/ from labels, remove (H3N2) atc. from labels before drawing them")),
                 Arg<int>("number-strains-threshold", 0, Help("Do not put branch annotation if \"number_strains\" for the branch is less than this value.")),
                 Arg<command_line_arguments::PrintHelp>('h', "help", "Usage: {progname} [options] <source.json> <output.pdf>", Help("print this help screen"))
@@ -61,7 +62,7 @@ int main(int argc, const char *argv[])
             tre.fix_labels();
 
         tree_image.clades().show(cl->get<bool>("clades"));
-        tree_image.make_pdf(cl->arg(1), tre, coloring, cl->get<int>("number-strains-threshold"), cl->get<bool>("show-branch-ids"));
+        tree_image.make_pdf(cl->arg(1), tre, coloring, cl->get<int>("number-strains-threshold"), cl->get<bool>("show-branch-ids"), cl->get<bool>("show-subtree-top-bottom"));
         std::cout << "Computed values (can be inserted into source.json at \"_settings\" key):" << std::endl << tree_image.dump_to_json().dump(2) << std::endl;
     }
     catch (std::exception& err) {

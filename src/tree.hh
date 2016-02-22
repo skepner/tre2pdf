@@ -71,6 +71,8 @@ class Tree : public Node
     void fix_labels();
     std::pair<Date, Date> min_max_date() const;
     std::pair<double, double> min_max_edge() const;
+    std::pair<const Node*, const Node*> top_bottom_nodes_of_subtree(std::string branch_id) const;
+
 
 }; // class Tree
 
@@ -91,6 +93,34 @@ template <typename N, typename F1 = void(*)(N&), typename F2 = void(*)(N&), type
         }
         f_subtree_post(aNode);
     }
+}
+
+// ----------------------------------------------------------------------
+
+template <typename P> inline const Node* find_node(const Node& aNode, P predicate)
+{
+    const Node* r = nullptr;
+    if (predicate(aNode)) {
+        r = &aNode;
+    }
+    else if (! aNode.is_leaf()) {
+        for (auto node = aNode.subtree.begin(); r == nullptr && node != aNode.subtree.end(); ++node) {
+            r = find_node(*node, predicate);
+        }
+    }
+    return r;
+}
+
+// ----------------------------------------------------------------------
+
+inline const Node& find_first_leaf(const Node& aNode)
+{
+    return aNode.is_leaf() ? aNode : find_first_leaf(aNode.subtree.front());
+}
+
+inline const Node& find_last_leaf(const Node& aNode)
+{
+    return aNode.is_leaf() ? aNode : find_last_leaf(aNode.subtree.back());
 }
 
 // ----------------------------------------------------------------------

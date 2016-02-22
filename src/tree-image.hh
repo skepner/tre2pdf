@@ -118,7 +118,7 @@ class TimeSeries
     inline bool show() const { return mShow; }
 
     void setup(TreeImage& aMain, const Tree& aTre);
-    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring);
+    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, bool aShowSubtreesTopBottom);
 
     inline const Location& origin() const { return mOrigin; }
     inline Location& origin() { return mOrigin; }
@@ -128,6 +128,34 @@ class TimeSeries
     void load_from_json(const json& j);
 
  private:
+    struct SubtreeTopBottom
+    {
+        bool show;
+        std::string branch_id;
+        Color line_color;
+        double line_width;
+
+        inline SubtreeTopBottom() = default;
+
+        inline SubtreeTopBottom(const json& j)
+            {
+                from_json(j, "show", show, true);
+                from_json(j, "branch_id", branch_id);
+                from_json(j, "line_color", line_color, Color(0x808080));
+                from_json(j, "line_width", line_width, 1.0);
+            }
+
+        inline operator json() const
+            {
+                return json {
+                    {"branch_id", branch_id},
+                    {"show", show},
+                    {"line_color", line_color},
+                    {"line_width", line_width},
+                };
+            }
+    };
+
     bool mShow;
     Date mBegin, mEnd;
     double mMonthWidth;
@@ -137,6 +165,7 @@ class TimeSeries
     size_t mMaxNumberOfMonths;
     Color mMonthSeparatorColor;
     double mMonthSeparatorWidth;
+    std::vector<SubtreeTopBottom> mSubtreeTopBottom;
 
     size_t mNumberOfMonths;
     Location mOrigin;
@@ -145,6 +174,7 @@ class TimeSeries
     void draw_labels_at_side(Surface& surface, const Location& a, double label_font_size, double month_max_width);
     void draw_month_separators(TreeImage& aMain);
     void draw_dashes(TreeImage& aMain, const Tree& aTre, Coloring aColoring);
+    void draw_subtree_top_bottom(TreeImage& aMain, const Tree& aTre);
 };
 
 // ----------------------------------------------------------------------
@@ -451,7 +481,7 @@ class TreeImage
         {
         }
 
-    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
+    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
 
     inline TimeSeries& time_series() { return mTimeSeries; }
     inline const TimeSeries& time_series() const { return mTimeSeries; }

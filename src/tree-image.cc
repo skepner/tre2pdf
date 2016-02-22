@@ -9,13 +9,13 @@
 
 // ----------------------------------------------------------------------
 
-void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, const Size& aCanvasSize)
+void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize)
 {
     setup(aFilename, aTre, aCanvasSize);
 
     tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold, aShowBranchIds);
     if (time_series().show())
-        time_series().draw(*this, aTre, aColoring);
+        time_series().draw(*this, aTre, aColoring, aShowSubtreesTopBottom);
     if (clades().show())
         clades().draw(*this, aTre);
 
@@ -471,11 +471,13 @@ void TimeSeries::setup(TreeImage& /*aMain*/, const Tree& aTre)
 
 // ----------------------------------------------------------------------
 
-void TimeSeries::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring)
+void TimeSeries::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, bool aShowSubtreesTopBottom)
 {
     draw_labels(aMain);
     draw_month_separators(aMain);
     draw_dashes(aMain, aTre, aColoring);
+    if (aShowSubtreesTopBottom)
+        draw_subtree_top_bottom(aMain, aTre);
 
 } // TimeSeries::draw
 
@@ -545,6 +547,25 @@ void TimeSeries::draw_dashes(TreeImage& aMain, const Tree& aTre, Coloring aColor
 
 // ----------------------------------------------------------------------
 
+void TimeSeries::draw_subtree_top_bottom(TreeImage& aMain, const Tree& aTre)
+{
+    Surface& surface = aMain.surface();
+    auto const base_y = aMain.tree().origin().y;
+    auto const vertical_step = aMain.tree().vertical_step();
+    for (auto entry = mSubtreeTopBottom.cbegin(); entry != mSubtreeTopBottom.end(); ++entry) {
+        if (entry->show) {
+            auto const nodes = aTre.top_bottom_nodes_of_subtree(entry->branch_id);
+            if (nodes.first != nullptr)
+                surface.line({origin().x, base_y + vertical_step * nodes.first->line_no - vertical_step * 0.5}, {origin().x + width(), base_y + vertical_step * nodes.first->line_no - vertical_step * 0.5}, entry->line_color, entry->line_width);
+            if (nodes.second != nullptr)
+                surface.line({origin().x, base_y + vertical_step * nodes.second->line_no + vertical_step * 0.5}, {origin().x + width(), base_y + vertical_step * nodes.second->line_no + vertical_step * 0.5}, entry->line_color, entry->line_width);
+        }
+    }
+
+} // TimeSeries::draw_subtree_top_bottom
+
+// ----------------------------------------------------------------------
+
 json TimeSeries::dump_to_json() const
 {
     json j = {
@@ -566,6 +587,7 @@ json TimeSeries::dump_to_json() const
         {"width_comment", "width is for information only, it is always re-calculated"},
         {"number_of_months", mNumberOfMonths},
         {"number_of_months_comment", "number_of_months is for information only"},
+        {"subtree_top_bottom", mSubtreeTopBottom},
     };
 
     return j;
@@ -586,6 +608,13 @@ void TimeSeries::load_from_json(const json& j)
     from_json(j, "month_separator_color", mMonthSeparatorColor);
     from_json_if_non_negative(j, "month_separator_width", mMonthSeparatorWidth);
     from_json_if_non_negative(j, "origin_x", mOrigin.x);
+
+    mSubtreeTopBottom.clear();
+    if (j.count("subtree_top_bottom")) {
+        for (auto i = j["subtree_top_bottom"].begin(); i != j["subtree_top_bottom"].end(); ++i) {
+            mSubtreeTopBottom.push_back(*i);
+        }
+    }
 
 } // TimeSeries::load_from_json
 
