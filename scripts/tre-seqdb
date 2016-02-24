@@ -175,11 +175,11 @@ def add_branch_annotations(data):
         pn = parent_names.get(pos)
         return pn is not None and pn[1] == transition[1]   # just the "to" in transition matters
 
-    def copy_extend(d1, d2):
-        r = {}
-        r.update(d1)
-        r.update(d2)
-        return r
+    # def copy_extend(d1, d2):
+    #     r = {}
+    #     r.update(d1)
+    #     r.update(d2)
+    #     return r
 
     def decode_tr_name(names):
         return ((e[1:-1], e[0] + e[-1]) for e in (names or "").split())
@@ -218,7 +218,7 @@ def add_branch_annotations(data):
                     annotations[node["name"]] += 1
                 except NameEmpty:
                     pass
-            names_for_subtree = copy_extend(parent_names, names)
+            names_for_subtree = {**parent_names, **names}
             for subtree in node["subtree"]:
                 ba_r(subtree, parents=parents + [node], parent_names=names_for_subtree)
 
