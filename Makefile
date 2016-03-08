@@ -19,15 +19,15 @@ ifeq ($(CLANG),Y)
   STD = c++14
 else
   WEVERYTHING = -Wall -Wextra
-  STD = c++14 # c++11
+  STD = c++14
 endif
 
 WARNINGS = # -Wno-padded
 OPTIMIZATION = # -O3
-CXXFLAGS = -MMD -g $(OPTIMIZATION) -std=$(STD) $(WEVERYTHING) $(WARNINGS) -I$(BUILD)/include $$(pkg-config --cflags cairo)
+CXXFLAGS = -MMD -g $(OPTIMIZATION) -std=$(STD) $(WEVERYTHING) $(WARNINGS) -I$(BUILD)/include $$(pkg-config --cflags cairo) $$(pkg-config --cflags liblzma)
 LDFLAGS =
-TRE2PDF_LDLIBS = $$(pkg-config --libs cairo)
-NEWICK2JSON_LDLIBS = $$(pkg-config --libs cairo)
+TRE2PDF_LDLIBS = $$(pkg-config --libs cairo) $$(pkg-config --libs liblzma)
+NEWICK2JSON_LDLIBS = $$(pkg-config --libs cairo) $$(pkg-config --libs liblzma)
 
 # ----------------------------------------------------------------------
 

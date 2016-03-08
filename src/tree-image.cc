@@ -206,6 +206,7 @@ Location Surface::arrow_head(const Location& a, double angle, double sign, const
 void Surface::text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation)
 {
     cairo_save(mContext);
+      // cairo_select_font_face(mContext, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(mContext, aSize);
     cairo_move_to(mContext, a.x, a.y);
     cairo_rotate(mContext, aRotation);

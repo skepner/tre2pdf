@@ -24,7 +24,7 @@
 
 """
 Reads json in the phylogenetic-tree-v1 format produced by newick2json,
-reads seqdb ("sequence-database-v1"),
+reads seqdb ("sequence-database-v2"),
 updates tree with clade and amino-acid information for each leaf node.
 """
 
@@ -70,9 +70,9 @@ def add_clade(data, seqdb):
                 if "clades" in node: del node["clades"]   # delete old data
                 seq = find_name_in_seqdb(seqdb, node["name"])
                 if seq:
-                    if seq.get("clades"):
-                        node["clades"] = seq["clades"]
-                        for c in seq["clades"]:
+                    if seq.get("c"):
+                        node["clades"] = seq["c"]
+                        for c in seq["c"]:
                             clades.setdefault(c, 0)
                             clades[c] += 1
                 else:
@@ -123,16 +123,16 @@ def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
             rn = 1
             if node.get("name"):
                 seq = find_name_in_seqdb(seqdb, node["name"])
-                if seq and seq.get("aa") and seq.get("shift") is not None:
-                    ls = len(seq["aa"])
+                if seq and seq.get("a") and seq.get("s") is not None:
+                    ls = len(seq["a"])
                     if pp is None:
-                        sp = pos_gen(len(seq["aa"]) - seq["shift"])
+                        sp = pos_gen(len(seq["a"]) - seq["s"])
                     else:
                         sp = pp.items()
                     for s, p in sp:
-                        pos = p - seq["shift"] - 1
+                        pos = p - seq["s"] - 1
                         if pos >= 0 and pos < ls:
-                            aa = seq["aa"][pos]
+                            aa = seq["a"][pos]
                             if not ignore_X or aa != "X":
                                 aa_at[s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
         else:
@@ -268,7 +268,7 @@ def add_branch_annotations(data):
             update_child(names)
             add_to_parent(names)
             update_name(names)
-            names_for_subtree = copy_extend(parent_names, names)
+            names_for_subtree = {**parent_names, **names}
             for subtree in node["subtree"]:
                 updated += ba_compact_r(subtree, parent_names=names_for_subtree)
         return updated
@@ -367,8 +367,8 @@ def remove_aa_at(data):
 def find_name_in_seqdb(seqdb, raw_name):
 
     def find_passage(e1, passage):
-        for e2 in e1["data"]:
-            if (passage is not None and passage in e2["passages"]) or (passage is None and not e2["passages"]):
+        for e2 in e1["s"]:
+            if (passage is not None and passage in e2["p"]) or (passage is None and not e2["p"]):
                 return e2
         return None
 
@@ -376,14 +376,16 @@ def find_name_in_seqdb(seqdb, raw_name):
     # module_logger.info('find {}'.format(raw_name))
     seq = find_hi_name_in_seqdb(seqdb, raw_name)
     if seq is None:
+        # module_logger.info('find {}'.format(raw_name))
         name, passage = split_name(raw_name)
-        e1 = seqdb.get(name)
-        if e1:
-            seq = find_passage(e1, passage)
-            if seq is None and " (" in passage:   # passage with date, look for passage wihtout date
-                seq = find_passage(e1, passage.split(" (")[0])
-            if seq is None:
-                module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
+        for e1 in seqdb:
+            if e1["N"] == name:
+                seq = find_passage(e1, passage)
+                if seq is None and " (" in passage:   # passage with date, look for passage without date
+                    seq = find_passage(e1, passage.split(" (")[0])
+                if seq is None:
+                    module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
+                break
         else:
             module_logger.warning('No {!r} in seqdb ({})'.format(name, raw_name))
     return seq
@@ -391,9 +393,9 @@ def find_name_in_seqdb(seqdb, raw_name):
 # ----------------------------------------------------------------------
 
 def find_hi_name_in_seqdb(seqdb, raw_name):
-    for e1 in seqdb.values():
-        for e2 in e1["data"]:
-            if e2.get("hi_name") == raw_name:
+    for e1 in seqdb:
+        for e2 in e1["s"]:
+            if e2.get("h") == raw_name:
                 return e2
     return None
 
@@ -425,9 +427,9 @@ def load_tree(filename):
 def load_seqdb(filename):
     import lzma
     data = json.loads(lzma.LZMAFile(filename).read().decode('utf-8'))
-    if data.get("  version") != "sequence-database-v1":
+    if data.get("  version") != "sequence-database-v2":
         raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
-    return data["1-names"]
+    return data["data"]
 
 # ----------------------------------------------------------------------
 
@@ -472,7 +474,14 @@ def save_tree(filename, data):
     if filename != "-":
         backup_file(filename)
     # json.dump(data, sys.stdout if filename == "-" else open(filename, "w"), indent=2, separators=(',', ': '), sort_keys=True)
-    print(json_dumps(data, 1, 1), file = sys.stdout if filename == "-" else open(filename, "w"))
+    if filename == "-":
+        f = sys.stdout
+    elif filename[-3:] == ".xz":
+        import lzma
+        f = lzma.LZMAFile(filename, "w")
+    else:
+        f = open(filename, "w")
+    print(json_dumps(data, 1, 1), file=f)
 
 # ----------------------------------------------------------------------
 
@@ -506,7 +515,7 @@ try:
     parser.add_argument('--branch-ids', action='store_true', dest='branch_ids', default=False, help='Add branch ids.')
     parser.add_argument('--remove-aa-at', action='store_true', dest='remove_aa_at', default=False, help='Remove aa_at values to make json smaller and faster to process.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
-    parser.add_argument('--db', action='store', dest='path_to_db', default='~/GH/whocc-sequences/seqdb/seqdb.json.xz', help='Path to sequence database.')
+    parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(asctime)s: %(message)s")
     exit_code = main(args)
