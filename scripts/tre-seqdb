@@ -28,7 +28,7 @@ reads seqdb ("sequence-database-v2"),
 updates tree with clade and amino-acid information for each leaf node.
 """
 
-import sys, os, re, json, traceback, collections, pprint
+import sys, os, re, json, traceback, collections, pprint, lzma
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 import logging; module_logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ def main(args):
     try:
         data = load_tree(args.source[0])
         seqdb = load_seqdb(os.path.expandvars(os.path.expanduser(args.path_to_db)))
+        make_index(seqdb)
         if args.add_clade_information:
             add_clade(data["tree"], seqdb)
         if args.pos is not None:
@@ -393,11 +394,24 @@ def find_name_in_seqdb(seqdb, raw_name):
 # ----------------------------------------------------------------------
 
 def find_hi_name_in_seqdb(seqdb, raw_name):
-    for e1 in seqdb:
-        for e2 in e1["s"]:
-            if e2.get("h") == raw_name:
-                return e2
-    return None
+    if hasattr(seqdb, "hi_names"):
+        return seqdb.hi_names.get(raw_name)
+    else:
+        for e1 in seqdb:
+            for e2 in e1["s"]:
+                if e2.get("h") == raw_name:
+                    return e2
+        return None
+
+# ----------------------------------------------------------------------
+
+def make_index(seqdb):
+    pass
+    # seqdb.hi_names = {}
+    # for e1 in seqdb:
+    #     for e2 in e1["s"]:
+    #         if e2.get("h"):
+    #             seqdb.hi_names[e2["h"]] = e2
 
 # ----------------------------------------------------------------------
 
@@ -417,7 +431,13 @@ def split_name(raw_name):
 # ----------------------------------------------------------------------
 
 def load_tree(filename):
-    data = json.load(sys.stdin if filename == "-" else open(filename))
+    if filename == "-":
+        f = sys.stdin
+    elif filename[-3:] == ".xz":
+        f = lzma.LZMAFile(filename)
+    else:
+        f = open(filename)
+    data = json.loads(f.read().decode('utf-8'))
     if data.get("  version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
         raise RuntimeError("Unrecognized source data")
     return data
@@ -425,7 +445,6 @@ def load_tree(filename):
 # ----------------------------------------------------------------------
 
 def load_seqdb(filename):
-    import lzma
     data = json.loads(lzma.LZMAFile(filename).read().decode('utf-8'))
     if data.get("  version") != "sequence-database-v2":
         raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
@@ -477,11 +496,10 @@ def save_tree(filename, data):
     if filename == "-":
         f = sys.stdout
     elif filename[-3:] == ".xz":
-        import lzma
         f = lzma.LZMAFile(filename, "w")
     else:
         f = open(filename, "w")
-    print(json_dumps(data, 1, 1), file=f)
+    f.write(json_dumps(data, 1, 1).encode("utf-8"))
 
 # ----------------------------------------------------------------------
 
