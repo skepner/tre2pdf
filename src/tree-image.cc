@@ -9,7 +9,7 @@
 
 // ----------------------------------------------------------------------
 
-void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize)
+void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize)
 {
     setup(aFilename, aTre, aCanvasSize);
 
@@ -96,19 +96,45 @@ void TreeImage::draw_title()
 
 // ----------------------------------------------------------------------
 
-Color TreeImage::coloring_by_continent(const Node& aNode)
+class ColoringByContinent : public Coloring
 {
-    return colors().continent(aNode.continent);
+ public:
+    inline Color operator()(const Node& aNode) const
+        {
+            return colors().continent(aNode.continent);
+        }
+};
+
+Coloring* TreeImage::coloring_by_continent()
+{
+    return new ColoringByContinent();
 
 } // TreeImage::coloring_by_continent
 
 // ----------------------------------------------------------------------
 
-Color TreeImage::coloring_by_pos(const Node& aNode)
+class ColoringByPos : public Coloring
 {
-    return colors().aa_at(aNode.aa_at);
+ public:
+    inline ColoringByPos(std::string aPos, const Tree& aTree)
+        : mPos(aPos)
+        {
 
-} // TreeImage::coloring_by_continent
+        }
+    inline Color operator()(const Node& aNode) const
+        {
+            return colors().aa_at(aNode.aa_at, mPos);
+        }
+
+ private:
+    std::string mPos;
+};
+
+Coloring* TreeImage::coloring_by_pos(std::string aPos, const Tree& aTree)
+{
+    return new ColoringByPos(aPos, aTree);
+
+} // TreeImage::coloring_by_pos
 
 // ----------------------------------------------------------------------
 
@@ -273,7 +299,7 @@ void TreePart::setup(TreeImage& aMain, const Tree& aTre)
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds)
+void TreePart::draw(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds)
 {
     draw_node(aMain, aTre, origin().x, aColoring, aNumberStrainsThreshold, aShowBranchIds, mRootEdge);
 
@@ -281,7 +307,7 @@ void TreePart::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int 
 
 // ----------------------------------------------------------------------
 
-void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength)
+void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength)
 {
     Surface& surface = aMain.surface();
     const double right = aLeft + (aEdgeLength < 0.0 ? aNode.edge_length : aEdgeLength) * mHorizontalStep;
@@ -292,8 +318,7 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Colo
         const std::string text = aNode.display_name();
         auto const font_size = mVerticalStep * mLabelScale;
         auto const tsize = surface.text_size(text, font_size);
-        auto color = aColoring ? aColoring(aNode) : 0;
-        surface.text({right + name_offset(), y + tsize.height * 0.5}, text, color, font_size);
+        surface.text({right + name_offset(), y + tsize.height * 0.5}, text, aColoring(aNode), font_size);
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
@@ -494,7 +519,7 @@ void TimeSeries::setup(TreeImage& /*aMain*/, const Tree& aTre)
 
 // ----------------------------------------------------------------------
 
-void TimeSeries::draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, bool aShowSubtreesTopBottom)
+void TimeSeries::draw(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring, bool aShowSubtreesTopBottom)
 {
     draw_labels(aMain);
     draw_month_separators(aMain);
@@ -549,7 +574,7 @@ void TimeSeries::draw_month_separators(TreeImage& aMain)
 
 // ----------------------------------------------------------------------
 
-void TimeSeries::draw_dashes(TreeImage& aMain, const Tree& aTre, Coloring aColoring)
+void TimeSeries::draw_dashes(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring)
 {
     Surface& surface = aMain.surface();
     auto const base_x = origin().x + mMonthWidth * (1.0 - mDashWidth) / 2;
@@ -560,8 +585,7 @@ void TimeSeries::draw_dashes(TreeImage& aMain, const Tree& aTre, Coloring aColor
         const int month_no = aNode.months_from(mBegin);
         if (month_no >= 0) {
             const Location a {base_x + mMonthWidth * month_no, base_y + vertical_step * aNode.line_no};
-            auto color = aColoring ? aColoring(aNode) : 0;
-            surface.line(a, {a.x + mMonthWidth * mDashWidth, a.y}, color, mDashLineWidth, CAIRO_LINE_CAP_ROUND);
+            surface.line(a, {a.x + mMonthWidth * mDashWidth, a.y}, aColoring(aNode), mDashLineWidth, CAIRO_LINE_CAP_ROUND);
         }
     };
     iterate<const Node&>(aTre, draw_dash);

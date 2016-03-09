@@ -2,11 +2,16 @@
 
 #include <string>
 #include <stdexcept>
+#include <functional>
 
 #include "cairo.hh"
 #include "date.hh"
 #include "color.hh"
 #include "json.hh"
+
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wweak-vtables"
+#endif
 
 // ----------------------------------------------------------------------
 
@@ -17,15 +22,10 @@ class Surface;
 
 // ----------------------------------------------------------------------
 
-#pragma GCC diagnostic push
-#ifdef __clang__
-#pragma GCC diagnostic ignored "-Wweak-vtables"
-#endif
 class TreeImageError : public std::runtime_error
 {
  public: using std::runtime_error::runtime_error;
 };
-#pragma GCC diagnostic pop
 
 // ----------------------------------------------------------------------
 
@@ -105,7 +105,20 @@ inline std::ostream& operator << (std::ostream& out, const Viewport& aViewport)
 
 // ----------------------------------------------------------------------
 
-typedef Color (*Coloring)(const Node&);
+class Coloring
+{
+ public:
+    Coloring() = default;
+    Coloring(const Coloring&) = default;
+    virtual ~Coloring() = default;
+    virtual Color operator()(const Node&) const = 0;
+};
+
+class ColoringBlack : public Coloring
+{
+ public:
+    virtual inline Color operator()(const Node&) const { return 0; }
+};
 
 // ----------------------------------------------------------------------
 
@@ -118,7 +131,7 @@ class TimeSeries
     inline bool show() const { return mShow; }
 
     void setup(TreeImage& aMain, const Tree& aTre);
-    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, bool aShowSubtreesTopBottom);
+    void draw(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring, bool aShowSubtreesTopBottom);
 
     inline const Location& origin() const { return mOrigin; }
     inline Location& origin() { return mOrigin; }
@@ -179,7 +192,7 @@ class TimeSeries
     void draw_labels(TreeImage& aMain);
     void draw_labels_at_side(Surface& surface, const Location& a, double label_font_size, double month_max_width);
     void draw_month_separators(TreeImage& aMain);
-    void draw_dashes(TreeImage& aMain, const Tree& aTre, Coloring aColoring);
+    void draw_dashes(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring);
     void draw_subtree_top_bottom(TreeImage& aMain, const Tree& aTre);
 };
 
@@ -321,7 +334,7 @@ class TreePart
     void setup(TreeImage& aMain, const Tree& aTre);
     void adjust_label_scale(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
     void adjust_horizontal_step(TreeImage& aMain, const Tree& aTre, double tree_right_margin);
-    void draw(TreeImage& aMain, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds);
+    void draw(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds);
 
     json dump_to_json() const;
     void load_from_json(const json& j);
@@ -436,7 +449,7 @@ class TreePart
     BranchAnnotation mBranchAnnotationsAll;
     std::vector<BranchAnnotation> mBranchAnnotations; // for some branch ids
 
-    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength = -1.0);
+    void draw_node(TreeImage& aMain, const Node& aNode, double aLeft, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, double aEdgeLength = -1.0);
     double tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLength = -1.0) const;
     const BranchAnnotation& find_branch_annotation(std::string branch_id) const;
     void show_branch_annotation(Surface& surface, std::string branch_id, std::string branch_annotation, double branch_left, double branch_right, double branch_y);
@@ -487,7 +500,7 @@ class TreeImage
         {
         }
 
-    void make_pdf(std::string aFilename, const Tree& aTre, Coloring aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
+    void make_pdf(std::string aFilename, const Tree& aTre, const Coloring& aColoring, int aNumberStrainsThreshold, bool aShowBranchIds, bool aShowSubtreesTopBottom, const Size& aCanvasSize = {72 * 8.5, 72 * 11.0});
 
     inline TimeSeries& time_series() { return mTimeSeries; }
     inline const TimeSeries& time_series() const { return mTimeSeries; }
@@ -503,8 +516,13 @@ class TreeImage
     inline double space_ts_clades() const { return mSpaceTsClades; }
 
       // To be passed to make_pdf
-    static Color coloring_by_continent(const Node& aNode);
-    static Color coloring_by_pos(const Node& aNode);
+    static Coloring* coloring_by_continent();
+    static Coloring* coloring_by_pos(std::string aPos, const Tree& aTree);
+
+    // static inline Coloring coloring_by_posX(std::string aPos, const Tree& aTree)
+    //     {
+    //         return std::bind(coloring_by_pos, aPos, std::placeholders::_1);
+    //     }
 
     json dump_to_json() const;
     void load_from_json(const json& j);

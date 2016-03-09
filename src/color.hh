@@ -104,7 +104,7 @@ class Colors
     Colors();
 
     Color continent(std::string aContinent) const;
-    Color aa_at(json aa_at) const;
+    Color aa_at(json aa_at, std::string pos) const;
 
  private:
     json mDatabase;

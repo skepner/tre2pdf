@@ -66,9 +66,9 @@ Color Colors::continent(std::string aContinent) const
 
 // ----------------------------------------------------------------------
 
-Color Colors::aa_at(json aa_at) const
+Color Colors::aa_at(json aa_at, std::string pos) const
 {
-    const std::string aa = aa_at["199"].is_null() ? "" : aa_at["199"];
+    const std::string aa = aa_at[pos].is_null() ? "" : aa_at[pos];
     auto const c = mDatabase["aa_at"].count(aa) ? mDatabase["aa_at"][aa] : mDatabase["aa_at"][""];
     return Color(c.get<size_t>());
 

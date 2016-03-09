@@ -55,17 +55,17 @@ int main(int argc, const char *argv[])
             std::cout << "min: " << min_max.first << "  max: " << min_max.second << std::endl;
         }
 
-        Coloring coloring = nullptr;
+        std::unique_ptr<Coloring> coloring(new ColoringBlack());
         if (cl->get<bool>("continents"))
-            coloring = TreeImage::coloring_by_continent;
+            coloring = std::unique_ptr<Coloring>(TreeImage::coloring_by_continent());
         else if (!cl->get<std::string>("pos").empty())
-            coloring = TreeImage::coloring_by_pos; //(cl->get<int>("pos"));
+            coloring = std::unique_ptr<Coloring>(TreeImage::coloring_by_pos(cl->get<std::string>("pos"), tre));
 
         if (cl->get<bool>("fix-labels"))
             tre.fix_labels();
 
         tree_image.clades().show(cl->get<bool>("clades"));
-        tree_image.make_pdf(cl->arg(1), tre, coloring, cl->get<int>("number-strains-threshold"), cl->get<bool>("show-branch-ids"), cl->get<bool>("show-subtree-top-bottom"));
+        tree_image.make_pdf(cl->arg(1), tre, *coloring, cl->get<int>("number-strains-threshold"), cl->get<bool>("show-branch-ids"), cl->get<bool>("show-subtree-top-bottom"));
         std::cout << "Computed values (can be inserted into source.json at \"_settings\" key):" << std::endl << tree_image.dump_to_json().dump(2) << std::endl;
     }
     catch (std::exception& err) {
