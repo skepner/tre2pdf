@@ -28,6 +28,7 @@ class Node
       // for coloring
     std::string continent;
     std::vector<std::string> clades;
+    json aa_at;
 
       // subtree part
     Subtree subtree;

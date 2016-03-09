@@ -17,6 +17,7 @@ int main(int argc, const char *argv[])
             (
                 Arg<bool>('p', false, Help("print tree")),
                 Arg<bool>("continents", false, Help("color code by continent")),
+                Arg<std::string>("pos", std::string(), Help("color code by pos")),
                 Arg<bool>("clades", false, Help("show clades")),
                 Arg<bool>("edges", false, Help("print edges")),
                 Arg<bool>("show-branch-ids", false, Help("show branch ids")),
@@ -57,6 +58,8 @@ int main(int argc, const char *argv[])
         Coloring coloring = nullptr;
         if (cl->get<bool>("continents"))
             coloring = TreeImage::coloring_by_continent;
+        else if (!cl->get<std::string>("pos").empty())
+            coloring = TreeImage::coloring_by_pos; //(cl->get<int>("pos"));
 
         if (cl->get<bool>("fix-labels"))
             tre.fix_labels();

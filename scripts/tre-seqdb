@@ -29,6 +29,7 @@ updates tree with clade and amino-acid information for each leaf node.
 """
 
 import sys, os, re, json, traceback, collections, pprint, lzma
+from pathlib import Path
 if sys.version_info.major != 3: raise RuntimeError("Run script with python3")
 import logging; module_logger = logging.getLogger(__name__)
 
@@ -38,8 +39,7 @@ def main(args):
     exit_code = 0
     try:
         data = load_tree(args.source[0])
-        seqdb = load_seqdb(os.path.expandvars(os.path.expanduser(args.path_to_db)))
-        make_index(seqdb)
+        seqdb = SeqDb(args.path_to_db)
         if args.add_clade_information:
             add_clade(data["tree"], seqdb)
         if args.pos is not None:
@@ -69,7 +69,7 @@ def add_clade(data, seqdb):
             if node.get("name"):
                 nodes["c"] += 1
                 if "clades" in node: del node["clades"]   # delete old data
-                seq = find_name_in_seqdb(seqdb, node["name"])
+                seq = seqdb.find_name(node["name"])
                 if seq:
                     if seq.get("c"):
                         node["clades"] = seq["c"]
@@ -123,7 +123,7 @@ def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
         if not node.get("subtree"):
             rn = 1
             if node.get("name"):
-                seq = find_name_in_seqdb(seqdb, node["name"])
+                seq = seqdb.find_name(node["name"])
                 if seq and seq.get("a") and seq.get("s") is not None:
                     ls = len(seq["a"])
                     if pp is None:
@@ -280,7 +280,7 @@ def add_branch_annotations(data):
     module_logger.info('Annotations\n{}'.format(pprint.pformat(dict(annotations), width=1)))
 
     pass_no  = 1
-    while True:
+    while False:
         # second pass: reduce number of labels by moving labels from multiple children to their parent
         updated_annotations = collections.defaultdict(int)
         if not ba_compact_r(data):        # repeat until there are no updates
@@ -365,71 +365,6 @@ def remove_aa_at(data):
 
 # ----------------------------------------------------------------------
 
-def find_name_in_seqdb(seqdb, raw_name):
-
-    def find_passage(e1, passage):
-        for e2 in e1["s"]:
-            if (passage is not None and passage in e2["p"]) or (passage is None and not e2["p"]):
-                return e2
-        return None
-
-    raw_name = raw_name.replace("/HUMAN/", "/")
-    # module_logger.info('find {}'.format(raw_name))
-    seq = find_hi_name_in_seqdb(seqdb, raw_name)
-    if seq is None:
-        # module_logger.info('find {}'.format(raw_name))
-        name, passage = split_name(raw_name)
-        for e1 in seqdb:
-            if e1["N"] == name:
-                seq = find_passage(e1, passage)
-                if seq is None and " (" in passage:   # passage with date, look for passage without date
-                    seq = find_passage(e1, passage.split(" (")[0])
-                if seq is None:
-                    module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
-                break
-        else:
-            module_logger.warning('No {!r} in seqdb ({})'.format(name, raw_name))
-    return seq
-
-# ----------------------------------------------------------------------
-
-def find_hi_name_in_seqdb(seqdb, raw_name):
-    if hasattr(seqdb, "hi_names"):
-        return seqdb.hi_names.get(raw_name)
-    else:
-        for e1 in seqdb:
-            for e2 in e1["s"]:
-                if e2.get("h") == raw_name:
-                    return e2
-        return None
-
-# ----------------------------------------------------------------------
-
-def make_index(seqdb):
-    pass
-    # seqdb.hi_names = {}
-    # for e1 in seqdb:
-    #     for e2 in e1["s"]:
-    #         if e2.get("h"):
-    #             seqdb.hi_names[e2["h"]] = e2
-
-# ----------------------------------------------------------------------
-
-sReNameParts = re.compile(r"^(?P<name>(?:B|A\(H\d+N\d+\))/[^/]+/[^/]+/(?:19\d\d|20[0-2]\d))\s+(?:(?P<infix>\([^\)]+\))\s+)?(?P<passage>.+)?$")
-
-def split_name(raw_name):
-    name = raw_name
-    passage = None
-    m = sReNameParts.match(raw_name)
-    if m:
-        name = m.group("name")
-        if m.group("infix"):
-            name += " " + m.group("infix")
-        passage = m.group("passage")
-    return name, passage
-
-# ----------------------------------------------------------------------
-
 def load_tree(filename):
     if filename == "-":
         f = sys.stdin
@@ -441,14 +376,6 @@ def load_tree(filename):
     if data.get("  version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
         raise RuntimeError("Unrecognized source data")
     return data
-
-# ----------------------------------------------------------------------
-
-def load_seqdb(filename):
-    data = json.loads(lzma.LZMAFile(filename).read().decode('utf-8'))
-    if data.get("  version") != "sequence-database-v2":
-        raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
-    return data["data"]
 
 # ----------------------------------------------------------------------
 
@@ -519,6 +446,76 @@ def backup_file(filename, backup_dir=None):
             os.rename(filename, newname)
         except Exception as err:
             module_logger.warning('Cannot create backup copy of {}: {}'.format(filename, err), exc_info=True)
+
+# ----------------------------------------------------------------------
+
+class SeqDb:
+
+    def __init__(self, filename):
+        data = json.loads(lzma.LZMAFile(str(Path(filename).expanduser())).read().decode('utf-8'))
+        if data.get("  version") != "sequence-database-v2":
+            raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
+        self.data = data["data"]
+        self.make_index()
+        self.find_hi_name = self.find_hi_name_using_index
+
+    def make_index(self):
+        self.hi_names = {}
+        self.names = {}
+        for e1 in self.data:
+            self.names[e1["N"]] = e1
+            for e2 in e1["s"]:
+                if e2.get("h"):
+                    self.hi_names[e2["h"]] = e2
+
+    def find_name(self, raw_name):
+
+        def find_passage(e1, passage):
+            for e2 in e1["s"]:
+                if (passage is not None and passage in e2["p"]) or (passage is None and not e2["p"]):
+                    return e2
+            return None
+
+        raw_name = raw_name.replace("/HUMAN/", "/")
+        # module_logger.info('find {}'.format(raw_name))
+        seq = self.find_hi_name(raw_name)
+        if seq is None:
+            # module_logger.info('find {}'.format(raw_name))
+            name, passage = self.split_name(raw_name)
+            e1 = self.names.get(name)
+            if e1:
+                seq = find_passage(e1, passage)
+                if seq is None and " (" in passage:   # passage with date, look for passage without date
+                    seq = find_passage(e1, passage.split(" (")[0])
+                if seq is None:
+                    module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
+            else:
+                module_logger.warning('No {!r} in seqdb ({})'.format(name, raw_name))
+        return seq
+
+    def find_hi_name_using_index(self, raw_name):
+        return self.hi_names.get(raw_name)
+
+    def find_hi_name_via_search(self, raw_name):
+        for e1 in self.data:
+            for e2 in e1["s"]:
+                if e2.get("h") == raw_name:
+                    return e2
+        return None
+
+    sReNameParts = re.compile(r"^(?P<name>(?:B|A\(H\d+N\d+\))/[^/]+/[^/]+/(?:19\d\d|20[0-2]\d))\s+(?:(?P<infix>\([^\)]+\))\s+)?(?P<passage>.+)?$")
+
+    def split_name(self, raw_name):
+        name = raw_name
+        passage = None
+        m = self.sReNameParts.match(raw_name)
+        if m:
+            name = m.group("name")
+            if m.group("infix"):
+                name += " " + m.group("infix")
+            passage = m.group("passage")
+        return name, passage
+
 
 # ----------------------------------------------------------------------
 

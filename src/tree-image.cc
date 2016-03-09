@@ -96,9 +96,17 @@ void TreeImage::draw_title()
 
 // ----------------------------------------------------------------------
 
-Color TreeImage::coloring_by_continent(const Node& aNone)
+Color TreeImage::coloring_by_continent(const Node& aNode)
 {
-    return colors().continent(aNone.continent);
+    return colors().continent(aNode.continent);
+
+} // TreeImage::coloring_by_continent
+
+// ----------------------------------------------------------------------
+
+Color TreeImage::coloring_by_pos(const Node& aNode)
+{
+    return colors().aa_at(aNode.aa_at);
 
 } // TreeImage::coloring_by_continent
 

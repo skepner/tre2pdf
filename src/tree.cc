@@ -181,6 +181,8 @@ void load_from_json(Node& aNode, const json& j)
         aNode.edge_length = j["edge_length"];
     if (j.count("name"))
         aNode.name = j["name"];
+    if (j.count("aa_at"))
+        aNode.aa_at = j["aa_at"];
     if (j.count("subtree")) {
         auto subtree = j["subtree"];
         if (!subtree.is_array())

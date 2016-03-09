@@ -503,7 +503,8 @@ class TreeImage
     inline double space_ts_clades() const { return mSpaceTsClades; }
 
       // To be passed to make_pdf
-    static Color coloring_by_continent(const Node& aNone);
+    static Color coloring_by_continent(const Node& aNode);
+    static Color coloring_by_pos(const Node& aNode);
 
     json dump_to_json() const;
     void load_from_json(const json& j);

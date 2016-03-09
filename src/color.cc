@@ -24,6 +24,13 @@ const json sDefaultDatabase = {
             {"CHINA-NORTH",       0x6495ED},
             {"CHINA-UNKNOWN",     0x808080},
             {"UNKNOWN",           0x808080},
+        }},
+    {"aa_at", {
+            {"T", 0x0000FF},
+            {"I", 0x00FF00},
+            {"N", 0xFF0000},
+            {"Q", 0xFFA500},
+            {"",  0x000000},
         }}
 };
 
@@ -53,6 +60,16 @@ Colors::Colors()
 Color Colors::continent(std::string aContinent) const
 {
     auto const c = mDatabase["continents"].count(aContinent) ? mDatabase["continents"][aContinent] : mDatabase["continents"]["UNKNOWN"];
+    return Color(c.get<size_t>());
+
+} // Colors::continent
+
+// ----------------------------------------------------------------------
+
+Color Colors::aa_at(json aa_at) const
+{
+    const std::string aa = aa_at["199"].is_null() ? "" : aa_at["199"];
+    auto const c = mDatabase["aa_at"].count(aa) ? mDatabase["aa_at"][aa] : mDatabase["aa_at"][""];
     return Color(c.get<size_t>());
 
 } // Colors::continent
