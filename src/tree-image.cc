@@ -203,10 +203,11 @@ Location Surface::arrow_head(const Location& a, double angle, double sign, const
 
 // ----------------------------------------------------------------------
 
-void Surface::text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation)
+void Surface::text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation, bool aMonospace)
 {
     cairo_save(mContext);
-      // cairo_select_font_face(mContext, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    if (aMonospace)
+        cairo_select_font_face(mContext, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(mContext, aSize);
     cairo_move_to(mContext, a.x, a.y);
     cairo_rotate(mContext, aRotation);
@@ -321,7 +322,7 @@ void TreePart::show_branch_annotation(Surface& surface, std::string branch_id, s
             if (ba.label_offset_x == 0.0 && (text_x + ts.width) > branch_right)
                 text_x = branch_right - ts.width;
             text_y += ts.height * ba.label_interleave;
-            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, font_size);
+            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, font_size, 0, true);
             if ((text_x + ba.label_offset_x) < 0)
                 std::cerr << text << " " << (text_x + ba.label_offset_x) << std::endl;
             if (end == std::string::npos)

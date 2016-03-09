@@ -8,8 +8,8 @@ MAKEFLAGS = -w
 
 SOURCES_DIR = src
 
-TRE2PDF_SOURCES = tre2pdf.cc tree.cc tree-image.cc color.cc
-NEWICK2JSON_SOURCES = newick2json.cc tree.cc tree-image.cc color.cc
+TRE2PDF_SOURCES = tre2pdf.cc tree.cc tree-import.cc tree-image.cc color.cc xz.cc
+NEWICK2JSON_SOURCES = newick2json.cc tree-import.cc tree.cc tree-image.cc color.cc xz.cc
 
 # ----------------------------------------------------------------------
 

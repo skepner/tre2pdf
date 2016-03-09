@@ -5,9 +5,13 @@
 #include <cstdlib>
 #include <map>
 #include <list>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
 
 #include "tree.hh"
 #include "tree-image.hh"
+#include "xz.hh"
 
 // ----------------------------------------------------------------------
 
@@ -262,14 +266,18 @@ void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, cons
                 }}},
         {"tree", dump_to_json(aTree)},
     };
+    std::string output = j.dump(2);
     if (aFilename == "-") {
-        std::cout << j.dump(2) << std::endl;
+        std::cout << output << std::endl;
     }
     else {
-        std::ofstream out(aFilename);
-        if (!out)
-            throw std::runtime_error(std::string("cannot write ") + aFilename);
-        out << j.dump(2) << std::endl;
+        if (aFilename.substr(aFilename.size() - 3) == ".xz")
+            output = xz_compress(output);
+        int fd = open(aFilename.c_str(), O_WRONLY | O_CREAT);
+        if (fd < 0)
+            throw std::runtime_error(std::string("cannot write ") + aFilename + ": " + std::strerror(errno));
+        write(fd, output.c_str(), output.size());
+        close(fd);
     }
 
 } // tree_to_json

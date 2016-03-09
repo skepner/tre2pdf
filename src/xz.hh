@@ -4,11 +4,8 @@
 
 // ----------------------------------------------------------------------
 
-class Tree;
-class TreeImage;
-
-// ----------------------------------------------------------------------
-
-void import_tree(Tree& tree, std::string buffer, TreeImage& aTreeImage);
+bool xz_compressed(std::string input);
+std::string xz_compress(std::string input);
+std::string xz_decompress(std::string input);
 
 // ----------------------------------------------------------------------

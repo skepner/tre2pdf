@@ -463,7 +463,7 @@ class Surface
 
     void line(const Location& a, const Location& b, const Color& aColor, double aWidth, cairo_line_cap_t aLineCap = CAIRO_LINE_CAP_BUTT);
     void double_arrow(const Location& a, const Location& b, const Color& aColor, double aLineWidth, double aArrowWidth);
-    void text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation = 0);
+    void text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation = 0, bool aMonospace = false);
 
     Size text_size(std::string aText, double aSize, double* x_bearing = nullptr);
 
