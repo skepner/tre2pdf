@@ -25,7 +25,7 @@ const json sDefaultDatabase = {
             {"CHINA-UNKNOWN",     0x808080},
             {"UNKNOWN",           0x808080},
         }},
-    {"aa_at", {
+    {"dis", {
             {"T", 0x0000FF},
             {"I", 0x00FF00},
             {"N", 0xFF0000},
@@ -35,6 +35,13 @@ const json sDefaultDatabase = {
 };
 
 #pragma GCC diagnostic pop
+
+const size_t sDistinctColors[] = {
+    0x0000FF,
+    0x00FF00,
+    0xFF0000,
+    0xFF8000,
+};
 
 // ----------------------------------------------------------------------
 
@@ -66,12 +73,10 @@ Color Colors::continent(std::string aContinent) const
 
 // ----------------------------------------------------------------------
 
-Color Colors::aa_at(json aa_at, std::string pos) const
+Color Colors::distinct_by_index(size_t aIndex) const
 {
-    const std::string aa = aa_at[pos].is_null() ? "" : aa_at[pos];
-    auto const c = mDatabase["aa_at"].count(aa) ? mDatabase["aa_at"][aa] : mDatabase["aa_at"][""];
-    return Color(c.get<size_t>());
+    return aIndex < (sizeof(sDistinctColors) / sizeof(sDistinctColors[0])) ? sDistinctColors[aIndex] : 0xFFC0CB;
 
-} // Colors::continent
+} // Colors::distinct_by_index
 
 // ----------------------------------------------------------------------

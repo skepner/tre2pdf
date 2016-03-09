@@ -117,17 +117,24 @@ class ColoringByPos : public Coloring
 {
  public:
     inline ColoringByPos(std::string aPos, const Tree& aTree)
-        : mPos(aPos)
+        : mPos(aPos), mAllAA(aTree.aa_at[mPos].is_string() ? aTree.aa_at[mPos].get<std::string>() : "")
         {
-
         }
+
     inline Color operator()(const Node& aNode) const
         {
-            return colors().aa_at(aNode.aa_at, mPos);
+            Color c(0);
+            if (!mAllAA.empty() && aNode.aa_at[mPos].is_string()) {
+                auto index = mAllAA.find(aNode.aa_at[mPos]);
+                if (index != std::string::npos)
+                    c = colors().distinct_by_index(index);
+            }
+            return c;
         }
 
  private:
     std::string mPos;
+    std::string mAllAA;
 };
 
 Coloring* TreeImage::coloring_by_pos(std::string aPos, const Tree& aTree)
