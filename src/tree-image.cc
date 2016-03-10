@@ -115,6 +115,16 @@ class ColoringByContinent : public Coloring
 
     virtual inline void draw_legend(Surface& aSurface, const Location& aLocation, const ColoringSettings& aSettings) const
         {
+            if (aSettings.legend_show) {
+                const char* labels[] = {"EUROPE", "CENTRAL-AMERICA", "MIDDLE-EAST", "NORTH-AMERICA", "AFRICA", "ASIA", "RUSSIA", "AUSTRALIA-OCEANIA", "SOUTH-AMERICA"};
+                auto n_labels = sizeof(labels) / sizeof(labels[0]);
+                auto const label_size = aSurface.text_size("W", aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
+                auto x = aLocation.x + aSettings.legend_offset_x;
+                auto y = aLocation.y + aSettings.legend_offset_y - label_size.height * aSettings.legend_interline * n_labels;
+                for (size_t index = 0; index < n_labels; ++index) {
+                    aSurface.text({x, y + label_size.height * aSettings.legend_interline * index}, labels[index], colors().continent(labels[index]), aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
+                }
+            }
         }
 };
 
@@ -150,9 +160,10 @@ class ColoringByPos : public Coloring
         {
             if (aSettings.legend_show) {
                 auto const label_size = aSurface.text_size("W", aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
-                auto y = aLocation.y - label_size.height * aSettings.legend_interline * mAllAA.size();
+                auto x = aLocation.x + aSettings.legend_offset_x;
+                auto y = aLocation.y + aSettings.legend_offset_y - label_size.height * aSettings.legend_interline * mAllAA.size();
                 for (size_t index = 0; index < mAllAA.size(); ++index) {
-                    aSurface.text({aLocation.x, y + label_size.height * aSettings.legend_interline * index}, std::string(1, mAllAA[index]), colors().distinct_by_index(index), aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
+                    aSurface.text({x, y + label_size.height * aSettings.legend_interline * index}, std::string(1, mAllAA[index]), colors().distinct_by_index(index), aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
                 }
                 aSurface.text(aLocation, "X", 0, aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
             }
