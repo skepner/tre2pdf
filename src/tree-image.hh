@@ -18,7 +18,6 @@
 class Tree;
 class Node;
 class TreeImage;
-class Surface;
 
 // ----------------------------------------------------------------------
 
@@ -105,6 +104,134 @@ inline std::ostream& operator << (std::ostream& out, const Viewport& aViewport)
 
 // ----------------------------------------------------------------------
 
+class Surface
+{
+ public:
+    enum FontStyle { FONT_DEFAULT, FONT_MONOSPACE };
+
+    inline Surface() : mContext(nullptr) {}
+
+    inline ~Surface()
+        {
+            if (mContext != nullptr)
+                cairo_destroy(mContext);
+        }
+
+    void setup(std::string aFilename, const Size& aCanvasSize);
+
+    const Size& canvas_size() const { return mCanvasSize; }
+
+    void line(const Location& a, const Location& b, const Color& aColor, double aWidth, cairo_line_cap_t aLineCap = CAIRO_LINE_CAP_BUTT);
+    void double_arrow(const Location& a, const Location& b, const Color& aColor, double aLineWidth, double aArrowWidth);
+    void text(const Location& a, std::string aText, const Color& aColor, double aSize, FontStyle aFontStyle = FONT_DEFAULT, cairo_font_slant_t aSlant = CAIRO_FONT_SLANT_NORMAL, cairo_font_weight_t aWeight = CAIRO_FONT_WEIGHT_NORMAL, double aRotation = 0);
+
+    Size text_size(std::string aText, double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight, double* x_bearing = nullptr);
+
+    void test();
+
+ private:
+    cairo_t* mContext;
+    Size mCanvasSize;
+
+    Location arrow_head(const Location& a, double angle, double sign, const Color& aColor, double aArrowWidth);
+    void context_prepare_for_text(double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight);
+
+}; // class Surface
+
+// ----------------------------------------------------------------------
+
+struct ColoringSettings
+{
+    bool legend_show;
+    double legend_font_size;
+    Surface::FontStyle legend_font_style;
+    cairo_font_slant_t legend_font_slant;
+    cairo_font_weight_t legend_font_weight;
+    double legend_offset_x;
+    double legend_offset_y;
+    double legend_interline;
+
+    inline ColoringSettings() { load_from_json("{}"_json); }
+
+    inline void load_from_json(const json& j)
+        {
+            from_json(j, "legend_show", legend_show, true);
+            from_json(j, "legend_font_size", legend_font_size, 15.0);
+
+            std::string style;
+            from_json(j, "legend_font_style", style, std::string("monospace"));
+            if (style == "monospace")
+                legend_font_style = Surface::FONT_MONOSPACE;
+            else
+                legend_font_style = Surface::FONT_DEFAULT;
+
+            std::string slant;
+            from_json(j, "legend_font_slant", slant, std::string("normal"));
+            if (slant == "oblique")
+                legend_font_slant = CAIRO_FONT_SLANT_OBLIQUE;
+            else if (slant == "italic")
+                legend_font_slant = CAIRO_FONT_SLANT_ITALIC;
+            else
+                legend_font_slant = CAIRO_FONT_SLANT_NORMAL;
+
+            std::string weight;
+            from_json(j, "legend_font_weight", weight, std::string("bold"));
+            if (weight == "bold")
+                legend_font_weight = CAIRO_FONT_WEIGHT_BOLD;
+            else
+                legend_font_weight = CAIRO_FONT_WEIGHT_NORMAL;
+
+            from_json(j, "legend_offset_x", legend_offset_x, 0.0);
+            from_json(j, "legend_offset_y", legend_offset_y, 0.0);
+            from_json(j, "legend_interline", legend_interline, 1.5);
+        }
+
+    inline operator json() const
+        {
+            std::string style, slant, weight;
+            switch (legend_font_style) {
+              case Surface::FONT_MONOSPACE:
+                  style = "monospace";
+                  break;
+              case Surface::FONT_DEFAULT:
+                  style = "default";
+                  break;
+            }
+            switch (legend_font_slant) {
+              case CAIRO_FONT_SLANT_NORMAL:
+                  slant = "normal";
+                  break;
+              case CAIRO_FONT_SLANT_ITALIC:
+                  slant = "italic";
+                  break;
+              case CAIRO_FONT_SLANT_OBLIQUE:
+                  slant = "oblique";
+                  break;
+            }
+            switch (legend_font_weight) {
+              case CAIRO_FONT_WEIGHT_NORMAL:
+                  weight = "normal";
+                  break;
+              case CAIRO_FONT_WEIGHT_BOLD:
+                  weight = "bold";
+                  break;
+            }
+            return json {
+                {"legend_show", legend_show},
+                {"legend_font_size", legend_font_size},
+                {"legend_font_style", style},
+                {"legend_font_slant", slant},
+                {"legend_font_weight", weight},
+                {"legend_offset_x", legend_offset_x},
+                {"legend_offset_y", legend_offset_y},
+                {"legend_interline", legend_interline},
+            };
+        }
+};
+
+
+// ----------------------------------------------------------------------
+
 class Coloring
 {
  public:
@@ -112,14 +239,14 @@ class Coloring
     Coloring(const Coloring&) = default;
     virtual ~Coloring() = default;
     virtual Color operator()(const Node&) const = 0;
-    virtual void draw_legend(Surface& aSurface, const Location& aLocation) const = 0;
+    virtual void draw_legend(Surface& aSurface, const Location& aLocation, const ColoringSettings& aSettings) const = 0;
 };
 
 class ColoringBlack : public Coloring
 {
  public:
     virtual inline Color operator()(const Node&) const { return 0; }
-    virtual void draw_legend(Surface&, const Location&) const {}
+    virtual void draw_legend(Surface&, const Location&, const ColoringSettings&) const {}
 };
 
 // ----------------------------------------------------------------------
@@ -461,42 +588,6 @@ class TreePart
 
 // ----------------------------------------------------------------------
 
-class Surface
-{
- public:
-    enum FontStyle { FONT_DEFAULT, FONT_MONOSPACE };
-
-    inline Surface() : mContext(nullptr) {}
-
-    inline ~Surface()
-        {
-            if (mContext != nullptr)
-                cairo_destroy(mContext);
-        }
-
-    void setup(std::string aFilename, const Size& aCanvasSize);
-
-    const Size& canvas_size() const { return mCanvasSize; }
-
-    void line(const Location& a, const Location& b, const Color& aColor, double aWidth, cairo_line_cap_t aLineCap = CAIRO_LINE_CAP_BUTT);
-    void double_arrow(const Location& a, const Location& b, const Color& aColor, double aLineWidth, double aArrowWidth);
-    void text(const Location& a, std::string aText, const Color& aColor, double aSize, FontStyle aFontStyle = FONT_DEFAULT, cairo_font_slant_t aSlant = CAIRO_FONT_SLANT_NORMAL, cairo_font_weight_t aWeight = CAIRO_FONT_WEIGHT_NORMAL, double aRotation = 0);
-
-    Size text_size(std::string aText, double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight, double* x_bearing = nullptr);
-
-    void test();
-
- private:
-    cairo_t* mContext;
-    Size mCanvasSize;
-
-    Location arrow_head(const Location& a, double angle, double sign, const Color& aColor, double aArrowWidth);
-    void context_prepare_for_text(double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight);
-
-}; // class Surface
-
-// ----------------------------------------------------------------------
-
 class TreeImage
 {
  public:
@@ -578,6 +669,7 @@ class TreeImage
     TimeSeries mTimeSeries;
     Clades mClades;
     Title mTitle;
+    ColoringSettings mColoringSettings;
 
     void setup(std::string aFilename, const Tree& aTre, const Size& aCanvasSize);
     void draw_title();

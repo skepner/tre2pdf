@@ -99,7 +99,7 @@ void TreeImage::draw_title()
 
 void TreeImage::draw_legend(const Coloring& aColoring)
 {
-    aColoring.draw_legend(surface(), {tree().origin().x, tree().origin().y + tree().vertical_step() * tree().number_of_lines()});
+    aColoring.draw_legend(surface(), {tree().origin().x, tree().origin().y + tree().vertical_step() * tree().number_of_lines()}, mColoringSettings);
 
 } // TreeImage::draw_legend
 
@@ -113,7 +113,7 @@ class ColoringByContinent : public Coloring
             return colors().continent(aNode.continent);
         }
 
-    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation) const
+    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation, const ColoringSettings& aSettings) const
         {
         }
 };
@@ -146,19 +146,16 @@ class ColoringByPos : public Coloring
         }
 
 
-    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation) const
+    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation, const ColoringSettings& aSettings) const
         {
-            double font_size = 20.0;
-            double interline = 1.5;
-            auto font_style = Surface::FONT_MONOSPACE;
-            auto slant = CAIRO_FONT_SLANT_NORMAL;
-            auto weight = CAIRO_FONT_WEIGHT_NORMAL;
-            auto const label_size = aSurface.text_size("W", font_size, font_style, slant, weight);
-            auto y = aLocation.y - label_size.height * interline * mAllAA.size();
-            for (size_t index = 0; index < mAllAA.size(); ++index) {
-                aSurface.text({aLocation.x, y + label_size.height * interline * index}, std::string(1, mAllAA[index]), colors().distinct_by_index(index), font_size, font_style, slant, weight);
+            if (aSettings.legend_show) {
+                auto const label_size = aSurface.text_size("W", aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
+                auto y = aLocation.y - label_size.height * aSettings.legend_interline * mAllAA.size();
+                for (size_t index = 0; index < mAllAA.size(); ++index) {
+                    aSurface.text({aLocation.x, y + label_size.height * aSettings.legend_interline * index}, std::string(1, mAllAA[index]), colors().distinct_by_index(index), aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
+                }
+                aSurface.text(aLocation, "X", 0, aSettings.legend_font_size, aSettings.legend_font_style, aSettings.legend_font_slant, aSettings.legend_font_weight);
             }
-            aSurface.text(aLocation, "X", 0, font_size, font_style, slant, weight);
         }
 
  private:
@@ -180,6 +177,8 @@ json TreeImage::dump_to_json() const
         {"clades", clades().dump_to_json()},
         {"time_series", time_series().dump_to_json()},
         {"tree", tree().dump_to_json()},
+        {"title", mTitle},
+        {"coloring", mColoringSettings},
     };
     return j;
 
@@ -191,6 +190,8 @@ void TreeImage::load_from_json(const json& j)
 {
     if (j.count("title"))
         mTitle.load_from_json(j["title"]);
+    if (j.count("coloring"))
+        mColoringSettings.load_from_json(j["coloring"]);
     if (j.count("tree"))
         tree().load_from_json(j["tree"]);
     if (j.count("time_series"))
