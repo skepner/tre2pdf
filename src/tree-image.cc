@@ -15,6 +15,7 @@ void TreeImage::make_pdf(std::string aFilename, const Tree& aTre, const Coloring
 
     draw_title();
     tree().draw(*this, aTre, aColoring, aNumberStrainsThreshold, aShowBranchIds);
+    draw_legend(aColoring);
     if (time_series().show())
         time_series().draw(*this, aTre, aColoring, aShowSubtreesTopBottom);
     if (clades().show())
@@ -96,12 +97,24 @@ void TreeImage::draw_title()
 
 // ----------------------------------------------------------------------
 
+void TreeImage::draw_legend(const Coloring& aColoring)
+{
+    aColoring.draw_legend(surface(), {tree().origin().x, tree().origin().y + tree().vertical_step() * tree().number_of_lines()});
+
+} // TreeImage::draw_legend
+
+// ----------------------------------------------------------------------
+
 class ColoringByContinent : public Coloring
 {
  public:
-    inline Color operator()(const Node& aNode) const
+    virtual inline Color operator()(const Node& aNode) const
         {
             return colors().continent(aNode.continent);
+        }
+
+    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation) const
+        {
         }
 };
 
@@ -130,6 +143,22 @@ class ColoringByPos : public Coloring
                     c = colors().distinct_by_index(index);
             }
             return c;
+        }
+
+
+    virtual inline void draw_legend(Surface& aSurface, const Location& aLocation) const
+        {
+            double font_size = 20.0;
+            double interline = 1.5;
+            auto font_style = Surface::FONT_MONOSPACE;
+            auto slant = CAIRO_FONT_SLANT_NORMAL;
+            auto weight = CAIRO_FONT_WEIGHT_NORMAL;
+            auto const label_size = aSurface.text_size("W", font_size, font_style, slant, weight);
+            auto y = aLocation.y - label_size.height * interline * mAllAA.size();
+            for (size_t index = 0; index < mAllAA.size(); ++index) {
+                aSurface.text({aLocation.x, y + label_size.height * interline * index}, std::string(1, mAllAA[index]), colors().distinct_by_index(index), font_size, font_style, slant, weight);
+            }
+            aSurface.text(aLocation, "X", 0, font_size, font_style, slant, weight);
         }
 
  private:
@@ -244,12 +273,10 @@ Location Surface::arrow_head(const Location& a, double angle, double sign, const
 
 // ----------------------------------------------------------------------
 
-void Surface::text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation, bool aMonospace)
+void Surface::text(const Location& a, std::string aText, const Color& aColor, double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight, double aRotation)
 {
     cairo_save(mContext);
-    if (aMonospace)
-        cairo_select_font_face(mContext, "monospace", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-    cairo_set_font_size(mContext, aSize);
+    context_prepare_for_text(aSize, aFontStyle, aSlant, aWeight);
     cairo_move_to(mContext, a.x, a.y);
     cairo_rotate(mContext, aRotation);
     aColor.set_source_rgba(mContext);
@@ -260,10 +287,10 @@ void Surface::text(const Location& a, std::string aText, const Color& aColor, do
 
 // ----------------------------------------------------------------------
 
-Size Surface::text_size(std::string aText, double aSize, double* x_bearing)
+Size Surface::text_size(std::string aText, double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight, double* x_bearing)
 {
     cairo_save(mContext);
-    cairo_set_font_size(mContext, aSize);
+    context_prepare_for_text(aSize, aFontStyle, aSlant, aWeight);
     cairo_text_extents_t text_extents;
     cairo_text_extents(mContext, aText.c_str(), &text_extents);
     cairo_restore(mContext);
@@ -275,13 +302,29 @@ Size Surface::text_size(std::string aText, double aSize, double* x_bearing)
 
 // ----------------------------------------------------------------------
 
+void Surface::context_prepare_for_text(double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight)
+{
+    switch (aFontStyle) {
+      case FONT_MONOSPACE:
+          cairo_select_font_face(mContext, "monospace", aSlant, aWeight);
+          break;
+      case FONT_DEFAULT:
+          cairo_select_font_face(mContext, "sans-serif", aSlant, aWeight);
+          break;
+    }
+    cairo_set_font_size(mContext, aSize);
+
+} // Surface::context_prepare_for_text
+
+// ----------------------------------------------------------------------
+
 void Surface::test()
 {
     line({100, 100}, {300, 100}, 0xFF00FF, 1);
-    text({100, 100}, "May 99", 0xFFA500, 20, 0);
-    text({100, 100}, "May 99", 0x00A5FF, 30, M_PI_2);
-    auto const tsize = text_size("May 99", 20);
-    text({100 + tsize.width, 100 - tsize.height}, "May 99", 0xFF00A5, 20, 0);
+    text({100, 100}, "May 99", 0xFFA500, 20);
+    text({100, 100}, "May 99", 0x00A5FF, 30, FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL, M_PI_2);
+    auto const tsize = text_size("May 99", 20, FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    text({100 + tsize.width, 100 - tsize.height}, "May 99", 0xFF00A5, 20);
 
     double_arrow({100, 350}, {300, 550}, 0xFF0000, 1, 4);
     double_arrow({100, 550}, {300, 350}, 0x0000FF, 1, 4);
@@ -324,8 +367,8 @@ void TreePart::draw_node(TreeImage& aMain, const Node& aNode, double aLeft, cons
     if (aNode.is_leaf()) {
         const std::string text = aNode.display_name();
         auto const font_size = mVerticalStep * mLabelScale;
-        auto const tsize = surface.text_size(text, font_size);
-        surface.text({right + name_offset(), y + tsize.height * 0.5}, text, aColoring(aNode), font_size);
+        auto const tsize = surface.text_size(text, font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        surface.text({right + name_offset(), y + tsize.height * 0.5}, text, aColoring(aNode), font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
           // std::cerr << (right + name_offset() + tsize.width) << " " << text << std::endl;
     }
     else {
@@ -357,12 +400,12 @@ void TreePart::show_branch_annotation(Surface& surface, std::string branch_id, s
             std::string::size_type end = label.find('\n', pos);
             auto font_size = ba.font_size > 0 ? ba.font_size : mVerticalStep * mLabelScale * (-ba.font_size);
             auto text = end == std::string::npos ? std::string(label, pos) : std::string(label, pos, end - pos);
-            auto const ts = surface.text_size(text.empty() ? "I" : text, font_size);
+            auto const ts = surface.text_size(text.empty() ? "I" : text, font_size, Surface::FONT_MONOSPACE, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
             auto text_x = branch_center - ts.width / 2.0;
             if (ba.label_offset_x == 0.0 && (text_x + ts.width) > branch_right)
                 text_x = branch_right - ts.width;
             text_y += ts.height * ba.label_interleave;
-            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, font_size, 0, true);
+            surface.text({text_x + ba.label_offset_x, text_y + ba.label_offset_y}, text, ba.color, font_size, Surface::FONT_MONOSPACE, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
             if ((text_x + ba.label_offset_x) < 0)
                 std::cerr << text << " " << (text_x + ba.label_offset_x) << std::endl;
             if (end == std::string::npos)
@@ -429,7 +472,7 @@ double TreePart::tree_width(TreeImage& aMain, const Node& aNode, double aEdgeLen
     const double right = (aEdgeLength < 0.0 ? aNode.edge_length : aEdgeLength) * mHorizontalStep;
     if (aNode.is_leaf()) {
         auto const font_size = mVerticalStep * mLabelScale;
-        r = surface.text_size(aNode.display_name(), font_size).width + name_offset();
+        r = surface.text_size(aNode.display_name(), font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL).width + name_offset();
     }
     else {
         for (auto node = aNode.subtree.begin(); node != aNode.subtree.end(); ++node) {
@@ -542,9 +585,9 @@ void TimeSeries::draw_labels(TreeImage& aMain)
 {
     Surface& surface = aMain.surface();
     const double label_font_size = mMonthWidth * mMonthLabelScale;
-    auto const month_max_width = surface.text_size("May ", label_font_size).width;
+    auto const month_max_width = surface.text_size("May ", label_font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL).width;
     double x_bearing;
-    auto const big_label_size = surface.text_size("May 99", label_font_size, &x_bearing);
+    auto const big_label_size = surface.text_size("May 99", label_font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL, &x_bearing);
     auto const text_up = (mMonthWidth - big_label_size.height) * 0.5;
     const Viewport& viewport = aMain.viewport();
 
@@ -560,8 +603,8 @@ void TimeSeries::draw_labels_at_side(Surface& surface, const Location& a, double
     Date current_month = mBegin;
     for (size_t month_no = 0; month_no < mNumberOfMonths; ++month_no, current_month.increment_month()) {
         const double left = origin().x + month_no * mMonthWidth + a.x;
-        surface.text({left, a.y}, current_month.month_3(), 0, label_font_size, M_PI_2);
-        surface.text({left, a.y + month_max_width}, current_month.year_2(), 0, label_font_size, M_PI_2);
+        surface.text({left, a.y}, current_month.month_3(), 0, label_font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL, M_PI_2);
+        surface.text({left, a.y + month_max_width}, current_month.year_2(), 0, label_font_size, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL, M_PI_2);
     }
 
 } // TimeSeries::draw_labels
@@ -727,11 +770,11 @@ void Clades::draw_clade(TreeImage& aMain, const CladeArrow& aClade)
         label_vpos = bottom;
     else
         label_vpos = (top + bottom) / 2.0;
-    auto const label_size = surface.text_size(aClade.label, mLabelFontSize);
+    auto const label_size = surface.text_size(aClade.label, mLabelFontSize, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
     label_vpos += label_size.height / 2.0 + aClade.label_position_offset;
 
     surface.double_arrow({x, top}, {x, bottom}, mArrowColor, mLineWidth, mArrowWidth);
-    surface.text({x + aClade.label_offset, label_vpos}, aClade.label, mLabelColor, mLabelFontSize, aClade.label_rotation);
+    surface.text({x + aClade.label_offset, label_vpos}, aClade.label, mLabelColor, mLabelFontSize, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL, aClade.label_rotation);
     double separator_left = aMain.tree().origin().x;
     double separator_right = x;
     if (mSeparatorJustInTree)
@@ -759,7 +802,7 @@ void Clades::assign_slots(TreeImage& aMain)
       // calculate width
     mWidth = 0;
     for (auto c = mClades.begin(); c != mClades.end(); ++c) {
-        auto const width = c->show ? c->slot * mSlotWidth + c->label_offset + surface.text_size(c->label, mLabelFontSize).width : 0;
+        auto const width = c->show ? c->slot * mSlotWidth + c->label_offset + surface.text_size(c->label, mLabelFontSize, Surface::FONT_DEFAULT, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL).width : 0;
         if (width > mWidth)
             mWidth = width;
     }

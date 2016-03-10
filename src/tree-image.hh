@@ -112,12 +112,14 @@ class Coloring
     Coloring(const Coloring&) = default;
     virtual ~Coloring() = default;
     virtual Color operator()(const Node&) const = 0;
+    virtual void draw_legend(Surface& aSurface, const Location& aLocation) const = 0;
 };
 
 class ColoringBlack : public Coloring
 {
  public:
     virtual inline Color operator()(const Node&) const { return 0; }
+    virtual void draw_legend(Surface&, const Location&) const {}
 };
 
 // ----------------------------------------------------------------------
@@ -462,6 +464,8 @@ class TreePart
 class Surface
 {
  public:
+    enum FontStyle { FONT_DEFAULT, FONT_MONOSPACE };
+
     inline Surface() : mContext(nullptr) {}
 
     inline ~Surface()
@@ -476,9 +480,9 @@ class Surface
 
     void line(const Location& a, const Location& b, const Color& aColor, double aWidth, cairo_line_cap_t aLineCap = CAIRO_LINE_CAP_BUTT);
     void double_arrow(const Location& a, const Location& b, const Color& aColor, double aLineWidth, double aArrowWidth);
-    void text(const Location& a, std::string aText, const Color& aColor, double aSize, double aRotation = 0, bool aMonospace = false);
+    void text(const Location& a, std::string aText, const Color& aColor, double aSize, FontStyle aFontStyle = FONT_DEFAULT, cairo_font_slant_t aSlant = CAIRO_FONT_SLANT_NORMAL, cairo_font_weight_t aWeight = CAIRO_FONT_WEIGHT_NORMAL, double aRotation = 0);
 
-    Size text_size(std::string aText, double aSize, double* x_bearing = nullptr);
+    Size text_size(std::string aText, double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight, double* x_bearing = nullptr);
 
     void test();
 
@@ -487,6 +491,7 @@ class Surface
     Size mCanvasSize;
 
     Location arrow_head(const Location& a, double angle, double sign, const Color& aColor, double aArrowWidth);
+    void context_prepare_for_text(double aSize, FontStyle aFontStyle, cairo_font_slant_t aSlant, cairo_font_weight_t aWeight);
 
 }; // class Surface
 
@@ -576,6 +581,7 @@ class TreeImage
 
     void setup(std::string aFilename, const Tree& aTre, const Size& aCanvasSize);
     void draw_title();
+    void draw_legend(const Coloring& aColoring);
 };
 
 // ----------------------------------------------------------------------
