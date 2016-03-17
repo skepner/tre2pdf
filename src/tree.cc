@@ -275,7 +275,7 @@ void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, cons
     else {
         if (aFilename.substr(aFilename.size() - 3) == ".xz")
             output = xz_compress(output);
-        int fd = open(aFilename.c_str(), O_WRONLY | O_CREAT, 0644);
+        int fd = open(aFilename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0)
             throw std::runtime_error(std::string("cannot write ") + aFilename + ": " + std::strerror(errno));
         write(fd, output.c_str(), output.size());
