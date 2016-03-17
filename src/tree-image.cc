@@ -583,11 +583,13 @@ void TimeSeries::setup(TreeImage& /*aMain*/, const Tree& aTre)
 
 void TimeSeries::draw(TreeImage& aMain, const Tree& aTre, const Coloring& aColoring, bool aShowSubtreesTopBottom)
 {
-    draw_labels(aMain);
-    draw_month_separators(aMain);
-    draw_dashes(aMain, aTre, aColoring);
-    if (aShowSubtreesTopBottom)
-        draw_subtree_top_bottom(aMain, aTre);
+    if (mNumberOfMonths > 1) {
+        draw_labels(aMain);
+        draw_month_separators(aMain);
+        draw_dashes(aMain, aTre, aColoring);
+        if (aShowSubtreesTopBottom)
+            draw_subtree_top_bottom(aMain, aTre);
+    }
 
 } // TimeSeries::draw
 

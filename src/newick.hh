@@ -70,7 +70,8 @@ template <typename I> void parse_newick(Tree& tree, I begin, I end)
     NodeStack current_node;
     current_node.push(&tree.subtree);
 
-    double extracted_edge_length = -1;
+    constexpr double default_edge_length = 0.0;
+    double extracted_edge_length = default_edge_length;
     std::string extracted_name;
 
     auto add_name = axe::e_ref([&current_node, &extracted_name, &extracted_edge_length, &decode_name](I, I) {
@@ -78,7 +79,7 @@ template <typename I> void parse_newick(Tree& tree, I begin, I end)
             auto const name_date = decode_name(extracted_name);
             current_node.top()->push_back(Node(name_date.first, extracted_edge_length, name_date.second));
             extracted_name.clear();
-            extracted_edge_length = -1;
+            extracted_edge_length = default_edge_length;
         });
 
     auto new_subtree = axe::e_ref([&current_node](I, I) {
@@ -91,14 +92,14 @@ template <typename I> void parse_newick(Tree& tree, I begin, I end)
               // std::cout << "+):" << extracted_edge_length << std::endl;
             current_node.pop();
             current_node.top()->rbegin()->edge_length = extracted_edge_length;
-            extracted_edge_length = -1;
+            extracted_edge_length = default_edge_length;
         });
 
     auto end_root_tree = axe::e_ref([&tree, &extracted_edge_length](I, I) {
               // std::cout << "end_root_tree " << extracted_edge_length << std::endl;
             if (extracted_edge_length >= 0.0)
                 tree.edge_length = extracted_edge_length;
-            extracted_edge_length = -1;
+            extracted_edge_length = default_edge_length;
         });
 
       // auto element_edge_length = axe::r_double(extracted_edge_length) | axe::r_ufixed(extracted_edge_length) | axe::r_udecimal(extracted_edge_length);
