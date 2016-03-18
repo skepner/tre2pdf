@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <map>
 #include <list>
+#include <algorithm>
 #include <fcntl.h>
 #include <unistd.h>
 #include <cstring>
@@ -41,6 +42,51 @@ int Node::months_from(const Date& aStart) const
     return date.empty() ? -1 : months_between_dates(aStart, date);
 
 } // Node::month_no
+
+// ----------------------------------------------------------------------
+
+void Node::ladderize()
+{
+    auto set_max_edge = [](Node& aNode) {
+        aNode.ladderize_max_edge_length = aNode.edge_length;
+        aNode.ladderize_max_date = aNode.date;
+        aNode.ladderize_max_name_alphabetically = aNode.name;
+    };
+
+    auto compute_max_edge = [](Node& aNode) {
+        auto const max_subtree_edge_node = std::max_element(aNode.subtree.begin(), aNode.subtree.end(), [](auto const& a, auto const& b) { return a.ladderize_max_edge_length < b.ladderize_max_edge_length; });
+        aNode.ladderize_max_edge_length = aNode.edge_length + max_subtree_edge_node->ladderize_max_edge_length;
+        aNode.ladderize_max_date = std::max_element(aNode.subtree.begin(), aNode.subtree.end(), [](auto const& a, auto const& b) { return a.ladderize_max_date < b.ladderize_max_date; })->ladderize_max_date;
+        aNode.ladderize_max_name_alphabetically = std::max_element(aNode.subtree.begin(), aNode.subtree.end(), [](auto const& a, auto const& b) { return a.ladderize_max_name_alphabetically < b.ladderize_max_name_alphabetically; })->ladderize_max_name_alphabetically;
+    };
+
+      // set max_edge_length field for every node
+    iterate<Node&>(*this, set_max_edge, &nope, compute_max_edge);
+
+    auto reorder_subtree_cmp = [](const Node& a, const Node& b) -> bool {
+        bool r = false;
+        if (std::abs(a.ladderize_max_edge_length - b.ladderize_max_edge_length) < std::numeric_limits<double>::epsilon()) {
+            if (a.ladderize_max_date == b.ladderize_max_date) {
+                r = a.ladderize_max_name_alphabetically < b.ladderize_max_name_alphabetically;
+            }
+            else {
+                r = a.ladderize_max_date < b.ladderize_max_date;
+            }
+        }
+        else {
+            r = a.ladderize_max_edge_length < b.ladderize_max_edge_length;
+        }
+        return r;
+    };
+
+    auto reorder_subtree = [&reorder_subtree_cmp](Node& aNode) {
+        std::sort(aNode.subtree.begin(), aNode.subtree.end(), reorder_subtree_cmp);
+    };
+
+      // re-order subtree based on max_edge_length of its nodes
+    iterate<Node&>(*this, &nope, &nope, reorder_subtree);
+
+} // Node::ladderize
 
 // ----------------------------------------------------------------------
 
@@ -167,6 +213,10 @@ void Tree::fix_labels()
             auto const pos = aNode.name.find(e.first);
             if (pos != std::string::npos)
                 aNode.name.erase(pos, e.second);
+              // replace __ with a space to handle seq_id
+            auto const pos__ = aNode.name.find("__");
+            if (pos__ != std::string::npos)
+                aNode.name.replace(pos__, 2, " ");
         }
     };
     iterate<Node&>(*this, fix_human);

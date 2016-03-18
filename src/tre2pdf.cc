@@ -23,6 +23,7 @@ int main(int argc, const char *argv[])
                 Arg<bool>("show-branch-ids", false, Help("show branch ids")),
                 Arg<bool>("show-subtree-top-bottom", false, Help("show subtree top bottom (see _settings.time_series.subtree_top_bottom in json)")),
                 Arg<bool>("fix-labels", false, Help("Remove /HUMAN/ from labels, remove (H3N2) atc. from labels before drawing them")),
+                Arg<bool>("ladderize", false, Help("Ladderize the tree before drawing")),
                 Arg<int>("number-strains-threshold", 0, Help("Do not put branch annotation if \"number_strains\" for the branch is less than this value.")),
                 Arg<command_line_arguments::PrintHelp>('h', "help", "Usage: {progname} [options] <source.json> <output.pdf>", Help("print this help screen"))
              );
@@ -41,6 +42,9 @@ int main(int argc, const char *argv[])
         Tree tre;
         TreeImage tree_image;
         import_tree(tre, cl->arg(0), tree_image);
+        if (cl->get<bool>("ladderize")) {
+            tre.ladderize();
+        }
         tre.analyse();
 
           // auto const wh = tre.width_height();
