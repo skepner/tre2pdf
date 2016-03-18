@@ -40,6 +40,8 @@ def main(args):
     try:
         data = load_tree(args.source[0])
         seqdb = SeqDb(args.path_to_db)
+        if args.dates:
+            add_dates(data["tree"], seqdb)
         if args.add_clade_information:
             add_clade(data["tree"], seqdb)
         if args.pos is not None:
@@ -59,21 +61,51 @@ def main(args):
 
 # ======================================================================
 
+def add_dates(data, seqdb):
+    dates = []
+
+    def add_date_r(node):
+        nonlocal dates
+        if not node.get("subtree"):
+            if node.get("name"):
+                if "date" in node: del node["date"]   # delete old data
+                seq = seqdb.find_name(node["name"])
+                if seq:
+                    d = seq.date()
+                    if d:
+                        node["date"] = d
+                        dates.append(d)
+                else:
+                    logging.warning("No sequence for {}".format(node["name"]))
+        else:
+            for e in node["subtree"]:
+                add_date_r(e)
+
+    add_date_r(data)
+    dates.sort()
+    if dates:
+        logging.info('Dates: {}  Min: {} Max: {}'.format(len(dates), dates[0], dates[-1]))
+    else:
+        module_logger.warning('No dates added')
+
+# ----------------------------------------------------------------------
+
 def add_clade(data, seqdb):
     clades = {}
     nodes = {"c": 0}
 
     def add_clade_r(node):
-        # global clades, nodes, clade_desc, sequences
+        nonlocal clades, nodes
         if not node.get("subtree"):
             if node.get("name"):
                 nodes["c"] += 1
                 if "clades" in node: del node["clades"]   # delete old data
                 seq = seqdb.find_name(node["name"])
                 if seq:
-                    if seq.get("c"):
-                        node["clades"] = seq["c"]
-                        for c in seq["c"]:
+                    cc = seq.clades()
+                    if cc:
+                        node["clades"] = cc
+                        for c in cc:
                             clades.setdefault(c, 0)
                             clades[c] += 1
                 else:
@@ -113,10 +145,6 @@ def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
             else:
                 x[k] = v
 
-    def pos_gen(size):
-        for pos in range(1, size + 1):
-            yield str(pos), pos
-
     def add_aa_r(node):
         del_old(node)
         aa_at = node["aa_at"] = {}        # reset
@@ -124,18 +152,20 @@ def add_amino_acid_at(data, seqdb, poss, ignore_X=True):
             rn = 1
             if node.get("name"):
                 seq = seqdb.find_name(node["name"])
-                if seq and seq.get("a") and seq.get("s") is not None:
-                    ls = len(seq["a"])
-                    if pp is None:
-                        sp = pos_gen(len(seq["a"]) - seq["s"])
-                    else:
-                        sp = pp.items()
-                    for s, p in sp:
-                        pos = p - seq["s"] - 1
-                        if pos >= 0 and pos < ls:
-                            aa = seq["a"][pos]
-                            if not ignore_X or aa != "X":
-                                aa_at[s] = aa   # note dict key must be str to be properly saveable and loadable into/from json
+                if seq:
+                    aa = seq.aa()
+                    shift = seq.shift()
+                    if aa and shift is not None:
+                        if pp is None:
+                            sp = ((str(pos), pos) for pos in range(1, len(aa) - shift + 1))
+                        else:
+                            sp = pp.items()
+                        for s, p in sp:
+                            pos = p - shift - 1
+                            if pos >= 0 and pos < len(aa):
+                                aa_at_pos = aa[pos]
+                                if not ignore_X or aa_at_pos != "X":
+                                    aa_at[s] = aa_at_pos   # note dict key must be str to be properly saveable and loadable into/from json
         else:
             rn = 0
             for subtree in node["subtree"]:
@@ -372,7 +402,10 @@ def load_tree(filename):
         f = lzma.LZMAFile(filename)
     else:
         f = open(filename)
-    data = json.loads(f.read().decode('utf-8'))
+    data_s = f.read()
+    if isinstance(data_s, bytes):
+        data_s = data_s.decode('utf-8')
+    data = json.loads(data_s)
     if data.get("  version") != "phylogenetic-tree-v1" or not isinstance(data.get("tree"), dict):
         raise RuntimeError("Unrecognized source data")
     return data
@@ -420,13 +453,15 @@ def save_tree(filename, data):
     if filename != "-":
         backup_file(filename)
     # json.dump(data, sys.stdout if filename == "-" else open(filename, "w"), indent=2, separators=(',', ': '), sort_keys=True)
+    data_s = json_dumps(data, 1, 1)
     if filename == "-":
         f = sys.stdout
     elif filename[-3:] == ".xz":
         f = lzma.LZMAFile(filename, "w")
+        data_s = data_s.encode("utf-8")
     else:
         f = open(filename, "w")
-    f.write(json_dumps(data, 1, 1).encode("utf-8"))
+    f.write(data_s)
 
 # ----------------------------------------------------------------------
 
@@ -449,6 +484,45 @@ def backup_file(filename, backup_dir=None):
 
 # ----------------------------------------------------------------------
 
+class Seq:
+
+    def __init__(self, db_entry, seq):
+        self.db_entry = db_entry
+        self.seq = seq
+
+    def date(self):
+        d = self.db_entry.get("d")
+        return d and d[-1]
+
+    def clades(self):
+        return self.seq.get("c")
+
+    def aa(self):
+        return self.seq.get("a")
+
+    def shift(self):
+        return self.seq.get("s")
+
+    # def aa_aligned_len(self):
+    #     aa = self.aa()
+    #     shift = self.shift()
+    #     if aa and shift is not None:
+    #         r = len(aa) - shift
+    #     else:
+    #         r = None
+
+    # def aa_at(self, pos):
+    #     r = None
+    #     aa = self.aa()
+    #     shift = self.shift()
+    #     if aa and shift is not None:
+    #         p = pos - shift - 1
+    #         if p >= 0 and p < len(aa):
+    #             r = aa[p]
+    #     return r
+
+# ----------------------------------------------------------------------
+
 class SeqDb:
 
     def __init__(self, filename):
@@ -457,18 +531,28 @@ class SeqDb:
             raise RuntimeError("Unrecognized sequence database version: {}".data.get("  version"))
         self.data = data["data"]
         self.make_index()
-        self.find_hi_name = self.find_hi_name_using_index
 
     def make_index(self):
         self.hi_names = {}
         self.names = {}
+        self.seq_ids = {}
         for e1 in self.data:
             self.names[e1["N"]] = e1
             for e2 in e1["s"]:
+                seq = Seq(e1, e2)
+                for passage in (e2.get("p") or [""]):   # note e["p"] can be [] but we need at least [""] here
+                    self.seq_ids["{}__{}".format(e1["N"], passage)] = seq
                 if e2.get("h"):
-                    self.hi_names[e2["h"]] = e2
+                    self.hi_names[e2["h"]] = seq
 
     def find_name(self, raw_name):
+        """Returns Seq instance."""
+        if "__" in raw_name:
+            return self.seq_ids.get(raw_name)
+        else:
+            return self._find_name(raw_name)
+
+    def _find_name(self, raw_name):
 
         def find_passage(e1, passage):
             for e2 in e1["s"]:
@@ -478,7 +562,7 @@ class SeqDb:
 
         raw_name = raw_name.replace("/HUMAN/", "/")
         # module_logger.info('find {}'.format(raw_name))
-        seq = self.find_hi_name(raw_name)
+        seq = self.hi_names.get(raw_name)
         if seq is None:
             # module_logger.info('find {}'.format(raw_name))
             name, passage = self.split_name(raw_name)
@@ -487,21 +571,20 @@ class SeqDb:
                 seq = find_passage(e1, passage)
                 if seq is None and " (" in passage:   # passage with date, look for passage without date
                     seq = find_passage(e1, passage.split(" (")[0])
-                if seq is None:
+                if seq is not None:
+                    seq = Seq(e1, seq)
+                else:
                     module_logger.warning('No passage {!r} {!r} in seqdb'.format(name, passage))
             else:
                 module_logger.warning('No {!r} in seqdb ({})'.format(name, raw_name))
         return seq
 
-    def find_hi_name_using_index(self, raw_name):
-        return self.hi_names.get(raw_name)
-
-    def find_hi_name_via_search(self, raw_name):
-        for e1 in self.data:
-            for e2 in e1["s"]:
-                if e2.get("h") == raw_name:
-                    return e2
-        return None
+    # def find_hi_name_via_search(self, raw_name):
+    #     for e1 in self.data:
+    #         for e2 in e1["s"]:
+    #             if e2.get("h") == raw_name:
+    #                 return e2
+    #     return None
 
     sReNameParts = re.compile(r"^(?P<name>(?:B|A\(H\d+N\d+\))/[^/]+/[^/]+/(?:19\d\d|20[0-2]\d))\s+(?:(?P<infix>\([^\)]+\))\s+)?(?P<passage>.+)?$")
 
@@ -528,6 +611,7 @@ try:
     parser.add_argument('--pos', action='store', dest='pos', default=None, help='Comma separated list of positions or "all". Add amino-acid information at this position to each node.')
     parser.add_argument('--branch-annotations', action='store_true', dest='branch_annotations', default=False, help='Add branch annotations.')
     parser.add_argument('--branch-ids', action='store_true', dest='branch_ids', default=False, help='Add branch ids.')
+    parser.add_argument('--dates', action='store_true', dest='dates', default=False, help='Add strain isolation dates from seqdb to leaf nodes.')
     parser.add_argument('--remove-aa-at', action='store_true', dest='remove_aa_at', default=False, help='Remove aa_at values to make json smaller and faster to process.')
     parser.add_argument('-d', '--debug', action='store_const', dest='loglevel', const=logging.DEBUG, default=logging.INFO, help='Enable debugging output.')
     parser.add_argument('--db', action='store', dest='path_to_db', default='~/WHO/seqdb.json.xz', help='Path to sequence database.')
