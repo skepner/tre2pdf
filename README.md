@@ -39,6 +39,10 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
             }
         }
 
+* Add dates from seqdb. Dates are used for ladderizing and for making time series.
+
+        ./scripts/tre-seqdb --dates <input.json> output.json>
+
 * Add amino acid at given pos information (uses seqdb)
 
         ./scripts/tre-seqdb --pos <pos,pos,pos> <input.json> output.json>
@@ -49,11 +53,11 @@ Note: <input.json> and <output.json> can be replaced with - to allow reading/wri
 
 * Generate pdf.
 
-        ./dist/tre2pdf --continents --clades --fix-labels --number-strains-threshold=20 --show-branch-ids --show-subtree-top-bottom <input.json> <output.pdf>
+        ./dist/tre2pdf --continents --clades --fix-labels --ladderize --number-strains-threshold=20 --show-branch-ids --show-subtree-top-bottom <input.json> <output.pdf>
 
 * Do everything using pipe.
 
-        ./dist/newick2json <input.tre> - | ./scripts/tre-continent --acmacs=https://localhost:1168 - - | ./scripts/tre-clade - <sequences.fasta> <clade-desc.json> - | ./dist/tre2pdf --continents --clades --fix-labels - <output.pdf>
+        ./dist/newick2json <input.tre> - | ./scripts/tre-continent --acmacs=https://localhost:1168 - - | ./scripts/tre-seqdb --clade --dates --pos <pos,pos> --branch-annotations --branch-ids - - | ./dist/tre2pdf --continents --clades --fix-labels --ladderize - <output.pdf>
 
 * Adjusting various settings.
 
