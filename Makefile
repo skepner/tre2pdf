@@ -10,6 +10,7 @@ SOURCES_DIR = src
 
 TRE2PDF_SOURCES = tre2pdf.cc tree.cc tree-import.cc tree-image.cc color.cc xz.cc
 NEWICK2JSON_SOURCES = newick2json.cc tree-import.cc tree.cc tree-image.cc color.cc xz.cc
+TREDIFF_SOURCES = trediff.cc tree.cc tree-import.cc xz.cc
 
 # ----------------------------------------------------------------------
 
@@ -28,13 +29,14 @@ CXXFLAGS = -MMD -g $(OPTIMIZATION) -std=$(STD) $(WEVERYTHING) $(WARNINGS) -I$(BU
 LDFLAGS =
 TRE2PDF_LDLIBS = $$(pkg-config --libs cairo) $$(pkg-config --libs liblzma)
 NEWICK2JSON_LDLIBS = $$(pkg-config --libs cairo) $$(pkg-config --libs liblzma)
+TREDIFF_LDLIBS = $$(pkg-config --libs liblzma)
 
 # ----------------------------------------------------------------------
 
 BUILD = build
 DIST = dist
 
-all: $(DIST)/newick2json $(DIST)/tre2pdf
+all: $(DIST)/newick2json $(DIST)/tre2pdf $(DIST)/trediff
 
 -include $(BUILD)/*.d
 
@@ -62,6 +64,9 @@ $(DIST)/newick2json: $(patsubst %.cc,$(BUILD)/%.o,$(NEWICK2JSON_SOURCES)) | $(DI
 
 $(DIST)/tre2pdf: $(patsubst %.cc,$(BUILD)/%.o,$(TRE2PDF_SOURCES)) | $(DIST)
 	g++ $(LDFLAGS) -o $@ $^ $(TRE2PDF_LDLIBS)
+
+$(DIST)/trediff: $(patsubst %.cc,$(BUILD)/%.o,$(TREDIFF_SOURCES)) | $(DIST)
+	g++ $(LDFLAGS) -o $@ $^ $(TREDIFF_LDLIBS)
 
 test: all
 	# $(DIST)/tre2pdf --continents --clades /tmp/d.json /tmp/t.pdf && open /tmp/t.pdf
