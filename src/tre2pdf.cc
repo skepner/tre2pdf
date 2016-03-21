@@ -25,6 +25,7 @@ int main(int argc, const char *argv[])
                 Arg<bool>("fix-labels", false, Help("Remove /HUMAN/ from labels, remove (H3N2) atc. from labels before drawing them")),
                 Arg<bool>("ladderize", false, Help("Ladderize the tree before drawing")),
                 Arg<int>("number-strains-threshold", 0, Help("Do not put branch annotation if \"number_strains\" for the branch is less than this value.")),
+                Arg<std::string>("save", std::string(), Help("Save ladderized tree, - for stdout")),
                 Arg<command_line_arguments::PrintHelp>('h', "help", "Usage: {progname} [options] <source.json> <output.pdf>", Help("print this help screen"))
              );
     cl->min_max(2, 2);                  // one argument expected
@@ -44,6 +45,13 @@ int main(int argc, const char *argv[])
         import_tree(tre, cl->arg(0), tree_image);
         if (cl->get<bool>("ladderize")) {
             tre.ladderize();
+        }
+        if (!cl->get<std::string>("save").empty()) {
+            std::string creator(argv[0]);
+            auto const last_slash = creator.rfind('/');
+            if (last_slash != std::string::npos)
+                creator.erase(0, last_slash + 1);
+            tree_to_json(tre, cl->get<std::string>("save"), creator, tree_image);
         }
         tre.analyse();
 

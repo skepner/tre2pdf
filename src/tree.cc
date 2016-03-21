@@ -297,12 +297,16 @@ void tree_from_json(Tree& aTree, std::string aSource, TreeImage& aTreeImage)
     load_from_json(aTree, j["tree"]);
     if (j.count("_settings"))
         aTreeImage.load_from_json(j["_settings"]);
+    if (j.count("updated"))
+        aTree.previously_updated(j["updated"]);
+    else
+        aTree.previously_updated(json::array());
 
 } // tree_from_json
 
 // ----------------------------------------------------------------------
 
-void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, const TreeImage& aTreeImage)
+void tree_to_json(const Tree& aTree, std::string aFilename, std::string aCreator, const TreeImage& aTreeImage)
 {
     char date_buf[100];
     std::time_t t = std::time(nullptr);
@@ -311,13 +315,10 @@ void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, cons
     json j = {
         {"  version", TREE_JSON_DUMP_VERSION},
         {"_settings", aTreeImage.dump_to_json()},
-        {"updated", {{
-                {"user", std::getenv("USER")},
-                {"date", date_buf},
-                {"creator", aCreator},
-                }}},
+        {"updated", aTree.previously_updated()},
         {"tree", dump_to_json(aTree)},
     };
+    j["updated"].push_back({{"user", std::getenv("USER")}, {"date", date_buf}, {"creator", aCreator}});
     std::string output = j.dump(2);
     if (aFilename == "-") {
         std::cout << output << std::endl;

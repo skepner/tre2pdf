@@ -253,7 +253,7 @@ class ColoringBlack : public Coloring
 class TimeSeries
 {
  public:
-    inline TimeSeries() : mShow(true), mMonthWidth(10.0), mDashWidth(0.5), mDashLineWidth(1.0), mMonthLabelScale(0.9), mMaxNumberOfMonths(20), mMonthSeparatorColor(0), mMonthSeparatorWidth(0.1) {}
+    inline TimeSeries() : mShow(true), mMonthWidth(10.0), mDashWidth(0.5), mDashLineWidth(1.0), mMonthLabelScale(0.9), mMaxNumberOfMonths(20), mMonthSeparatorColor(0), mMonthSeparatorWidth(0.1), mNumberOfMonths(0) {}
 
     inline double width() const { return mShow ? mNumberOfMonths * mMonthWidth : 0.0; }
     inline bool show() const { return mShow; }

@@ -81,6 +81,11 @@ class Tree : public Node
     std::pair<double, double> min_max_edge() const;
     std::pair<const Node*, const Node*> top_bottom_nodes_of_subtree(std::string branch_id) const;
 
+    inline void previously_updated(json aUpdated) { mPreviouslyUpdated = aUpdated; }
+    inline json previously_updated() const { return mPreviouslyUpdated; }
+
+ private:
+    json mPreviouslyUpdated;
 
 }; // class Tree
 
@@ -140,6 +145,6 @@ constexpr const char* TREE_JSON_DUMP_VERSION = "phylogenetic-tree-v1";
 json dump_to_json(const Node& aNode);
 void load_from_json(Node& aNode, const json& j);
 void tree_from_json(Tree& aTree, std::string aSource, TreeImage& aTreeImage);
-void tree_to_json(Tree& aTree, std::string aFilename, std::string aCreator, const TreeImage& aTreeImage);
+void tree_to_json(const Tree& aTree, std::string aFilename, std::string aCreator, const TreeImage& aTreeImage);
 
 // ----------------------------------------------------------------------
