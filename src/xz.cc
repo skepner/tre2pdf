@@ -1,3 +1,5 @@
+#include <stdexcept>
+
 #include "xz.hh"
 
 #pragma GCC diagnostic push
