@@ -40,10 +40,8 @@ def main(args):
     try:
         data = load_tree(args.source[0])
         seqdb = SeqDb(args.path_to_db)
-        if args.dates:
-            add_dates(data["tree"], seqdb)
-        if args.add_clade_information:
-            add_clade(data["tree"], seqdb)
+        if args.dates or args.add_clade_information:
+            add_dates_clades(data["tree"], seqdb, add_dates=args.dates, add_clades=args.add_clade_information)
         if args.pos is not None:
             add_amino_acid_at(data["tree"], seqdb, args.pos)
         if args.branch_annotations:
@@ -61,61 +59,52 @@ def main(args):
 
 # ======================================================================
 
-def add_dates(data, seqdb):
+def add_dates_clades(data, seqdb, add_dates, add_clades):
     dates = []
+    clades = collections.defaultdict(int)
+    leaf_nodes = 0
 
-    def add_date_r(node):
-        nonlocal dates
+    def remove_old_info(node):
+        if add_dates and "date" in node:
+            del node["date"]
+        if add_clades and "clades" in node:
+            del node["clades"]
+
+    def add_r(node):
+        nonlocal dates, clades, leaf_nodes
         if not node.get("subtree"):
             if node.get("name"):
-                if "date" in node: del node["date"]   # delete old data
+                leaf_nodes += 1
                 seq = seqdb.find_name(node["name"])
+                remove_old_info(node)
                 if seq:
-                    d = seq.date()
-                    if d:
-                        node["date"] = d
-                        dates.append(d)
+                    if add_dates:
+                        d = seq.date()
+                        if d:
+                            node["date"] = d
+                            dates.append(d)
+                    if add_clades:
+                        cc = seq.clades()
+                        if cc:
+                            node["clades"] = cc
+                            for c in cc:
+                                clades[c] += 1
                 else:
                     logging.warning("No sequence for {}".format(node["name"]))
         else:
             for e in node["subtree"]:
-                add_date_r(e)
+                add_r(e)
 
-    add_date_r(data)
-    dates.sort()
-    if dates:
-        logging.info('Dates: {}  Min: {} Max: {}'.format(len(dates), dates[0], dates[-1]))
-    else:
-        module_logger.warning('No dates added')
+    add_r(data)
 
-# ----------------------------------------------------------------------
-
-def add_clade(data, seqdb):
-    clades = {}
-    nodes = {"c": 0}
-
-    def add_clade_r(node):
-        nonlocal clades, nodes
-        if not node.get("subtree"):
-            if node.get("name"):
-                nodes["c"] += 1
-                if "clades" in node: del node["clades"]   # delete old data
-                seq = seqdb.find_name(node["name"])
-                if seq:
-                    cc = seq.clades()
-                    if cc:
-                        node["clades"] = cc
-                        for c in cc:
-                            clades.setdefault(c, 0)
-                            clades[c] += 1
-                else:
-                    pass # logging.warning("No sequence for {}".format(node["name"]))
+    if add_dates:
+        dates.sort()
+        if dates:
+            logging.info('Dates: {}  Min: {} Max: {}'.format(len(dates), dates[0], dates[-1]))
         else:
-            for e in node["subtree"]:
-                add_clade_r(e)
-
-    add_clade_r(data)
-    logging.info('Nodes: {}  Clades {}'.format(nodes["c"], clades))
+            module_logger.warning('No dates added')
+    if add_clades:
+        logging.info('Nodes: {}  Clades {}'.format(leaf_nodes, dict(clades)))
 
 # ----------------------------------------------------------------------
 
