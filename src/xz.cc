@@ -1,4 +1,5 @@
 #include <stdexcept>
+#include <cstring>
 
 #include "xz.hh"
 
