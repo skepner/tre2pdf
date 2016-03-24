@@ -20,7 +20,7 @@ inline std::string read_file(std::string aFilename)
         close(f);
     }
     else {
-        throw std::runtime_error(std::string("Cannot open ") + aFilename + ": " + std::strerror(errno));
+        throw std::runtime_error(std::string("Cannot open ") + aFilename + ": " + strerror(errno));
     }
     return buffer;
 }
@@ -43,7 +43,7 @@ inline std::string read_from_file_descriptor(int fd, size_t chunk_size = 1024)
         buffer.resize(buffer.size() + chunk_size, ' ');
         const auto bytes_read = read(fd, (&*buffer.begin()) + offset, chunk_size);
         if (bytes_read < 0)
-            throw std::runtime_error(std::string("Cannot read from file descriptor: ") + std::strerror(errno));
+            throw std::runtime_error(std::string("Cannot read from file descriptor: ") + strerror(errno));
         if (static_cast<size_t>(bytes_read) < chunk_size) {
             buffer.resize(buffer.size() - chunk_size + static_cast<size_t>(bytes_read));
             break;
